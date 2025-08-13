@@ -1,0 +1,65 @@
+{
+  "normal_traffic": {
+    "name": "Normal Web Traffic",
+    "description": "Typical HTTP browsing session",
+    "data": {
+      "duration": 120.0,
+      "protocol_type": "tcp",
+      "service": "http",
+      "flag": "SF",
+      "src_bytes": 2000.0,
+      "dst_bytes": 5000.0,
+      "count": 5,
+      "srv_count": 3,
+      "serror_rate": 0.0,
+      "srv_serror_rate": 0.0,
+      "rerror_rate": 0.0,
+      "srv_rerror_rate": 0.0,
+      "same_srv_rate": 1.0,
+      "diff_srv_rate": 0.0,
+      "expected_result": "Normal Traffic"
+    }
+  },
+  "neptune_attack": {
+    "name": "Neptune SYN Flood Attack",
+    "description": "Classic SYN flooding DDoS attack",
+    "data": {
+      "duration": 2.0,
+      "protocol_type": "tcp",
+      "service": "http",
+      "flag": "S0",
+      "src_bytes": 100.0,
+      "dst_bytes": 0.0,
+      "count": 250,
+      "srv_count": 200,
+      "serror_rate": 0.85,
+      "srv_serror_rate": 0.9,
+      "rerror_rate": 0.0,
+      "srv_rerror_rate": 0.0,
+      "same_srv_rate": 0.1,
+      "diff_srv_rate": 0.9,
+      "expected_result": "DDoS Attack"
+    }
+  },
+  "smurf_attack": {
+    "name": "Smurf ICMP Flood",
+    "description": "ICMP amplification attack",
+    "data": {
+      "duration": 0.0,
+      "protocol_type": "icmp",
+      "service": "ecr_i",
+      "flag": "SF",
+      "src_bytes": 1032.0,
+      "dst_bytes": 0.0,
+      "count": 300,
+      "srv_count": 30,
+      "serror_rate": 0.0,
+      "srv_serror_rate": 0.0,
+      "rerror_rate": 0.0,
+      "srv_rerror_rate": 0.0,
+      "same_srv_rate": 0.2,
+      "diff_srv_rate": 0.8,
+      "expected_result": "DDoS Attack"
+    }
+  }
+}

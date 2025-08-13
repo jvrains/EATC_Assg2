@@ -1,0 +1,126 @@
+{
+  "model_info": {
+    "model_name": "Enhanced DDoS Detection - Ensemble",
+    "model_type": "Random Forest with Transfer Learning",
+    "algorithm": "RandomForestClassifier",
+    "framework": "scikit-learn",
+    "model_path": "../models/finetuned/enhanced_ddos_model.pkl",
+    "training_approach": "Transfer Learning with Feature Enhancement"
+  },
+  "performance_metrics": {
+    "accuracy": 0.9255677785663591,
+    "precision": 0.9243969564513518,
+    "recall": 0.8250252853633868,
+    "f1_score": 0.871888837990533,
+    "baseline_accuracy": 0.9344393186657204,
+    "improvement_over_baseline": -0.008871540099361308
+  },
+  "model_configuration": {
+    "n_estimators": 100,
+    "max_depth": 12,
+    "min_samples_split": 2,
+    "class_weight": "balanced",
+    "random_state": 42
+  },
+  "dataset_info": {
+    "training_samples": 25192,
+    "test_samples": 22544,
+    "features_count": 35,
+    "ddos_percentage_train": 0.4144966656081296,
+    "ddos_percentage_test": 0.306999645138396
+  },
+  "features": {
+    "core_features": [
+      "duration",
+      "protocol_type",
+      "service",
+      "flag",
+      "src_bytes",
+      "dst_bytes",
+      "count",
+      "srv_count",
+      "serror_rate",
+      "srv_serror_rate",
+      "rerror_rate",
+      "srv_rerror_rate",
+      "same_srv_rate",
+      "diff_srv_rate",
+      "srv_diff_host_rate",
+      "dst_host_count",
+      "dst_host_srv_count",
+      "dst_host_same_srv_rate",
+      "dst_host_diff_srv_rate",
+      "dst_host_serror_rate",
+      "dst_host_srv_serror_rate"
+    ],
+    "enhanced_features": [
+      "duration",
+      "protocol_type",
+      "service",
+      "flag",
+      "src_bytes",
+      "dst_bytes",
+      "count",
+      "srv_count",
+      "serror_rate",
+      "srv_serror_rate",
+      "rerror_rate",
+      "srv_rerror_rate",
+      "same_srv_rate",
+      "diff_srv_rate",
+      "srv_diff_host_rate",
+      "dst_host_count",
+      "dst_host_srv_count",
+      "dst_host_same_srv_rate",
+      "dst_host_diff_srv_rate",
+      "dst_host_serror_rate",
+      "dst_host_srv_serror_rate",
+      "total_bytes",
+      "byte_ratio",
+      "bytes_per_second",
+      "connection_density",
+      "service_diversity",
+      "host_diversity",
+      "total_error_rate",
+      "error_asymmetry",
+      "host_error_rate",
+      "host_connection_ratio",
+      "host_service_concentration",
+      "is_short_connection",
+      "is_high_volume",
+      "is_high_error"
+    ],
+    "feature_engineering": [
+      "total_bytes",
+      "byte_ratio",
+      "bytes_per_second",
+      "connection_density",
+      "service_diversity",
+      "error_asymmetry"
+    ]
+  },
+  "encoders": {
+    "categorical_columns": [
+      "protocol_type",
+      "service",
+      "flag"
+    ],
+    "encoder_paths": {
+      "protocol_type": "../models/encoders/protocol_type_encoder.pkl",
+      "service": "../models/encoders/service_encoder.pkl",
+      "flag": "../models/encoders/flag_encoder.pkl"
+    }
+  },
+  "training_details": {
+    "created_date": "2025-08-13T15:18:08.564295",
+    "training_time": "Under 5 minutes",
+    "validation_method": "Train-test split with stratification",
+    "cross_validation_performed": false
+  },
+  "deployment_ready": {
+    "streamlit_compatible": true,
+    "model_size_mb": 3.0019006729125977,
+    "prediction_time_ms": "Under 10ms per prediction",
+    "batch_processing_capable": true
+  }
+}
