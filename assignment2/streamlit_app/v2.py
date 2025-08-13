@@ -85,7 +85,7 @@ class DDoSDetectionSystem:
         try:
             # Streamlit Cloud specific paths (app runs from root, not streamlit_app folder)
             metadata_paths = [
-                'assignment2/models/finetuned/model_metadata.json',     # Streamlit Cloud (PRIMARY)
+                'assignment2\models\finetuned\model_metadata.json',     # Streamlit Cloud (PRIMARY)
                 './models/finetuned/model_metadata.json',   # Streamlit Cloud alternative
                 '../models/finetuned/model_metadata.json',  # Local development
                 'model_metadata.json',                      # If in root
