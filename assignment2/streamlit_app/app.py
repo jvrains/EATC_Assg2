@@ -450,7 +450,102 @@ class DDoSDetectionSystem:
                 'threat_level': 'UNKNOWN',
                 'raw_prediction': 0
             }
-    
+    def predict_with_debug(self, input_data):
+        """Debug version of predict method to identify the issue"""
+        try:
+            # Preprocess input
+            processed_data = self.preprocess_input(input_data)
+            
+            print("=== DEBUGGING PREDICTION ===")
+            print(f"Input data keys: {list(input_data.keys()) if isinstance(input_data, dict) else 'DataFrame'}")
+            print(f"Processed data shape: {processed_data.shape}")
+            print(f"Expected features: {len(self.feature_names)}")
+            print(f"Model type: {type(self.model)}")
+            
+            # Check if model has predict_proba
+            if hasattr(self.model, 'predict_proba'):
+                print("✅ Model has predict_proba")
+                
+                # Get raw probabilities
+                probabilities = self.model.predict_proba(processed_data)
+                print(f"Raw probabilities shape: {probabilities.shape}")
+                print(f"Raw probabilities: {probabilities}")
+                print(f"Probabilities[0]: {probabilities[0]}")
+                
+                # Check class labels
+                if hasattr(self.model, 'classes_'):
+                    print(f"Model classes: {self.model.classes_}")
+                
+                # Extract probabilities
+                prob_array = probabilities[0]
+                print(f"Probability array: {prob_array}")
+                print(f"prob_array[0] (class 0): {prob_array[0]}")
+                print(f"prob_array[1] (class 1): {prob_array[1]}")
+                
+                # CRITICAL: Check which class is which
+                normal_probability = float(prob_array[0])  # Assuming class 0 = Normal
+                ddos_probability = float(prob_array[1])    # Assuming class 1 = DDoS
+                
+                print(f"Extracted normal_probability: {normal_probability}")
+                print(f"Extracted ddos_probability: {ddos_probability}")
+                
+                # Apply threshold
+                detection_threshold = 0.1
+                prediction = 1 if ddos_probability > detection_threshold else 0
+                
+                print(f"Threshold: {detection_threshold}")
+                print(f"ddos_probability > threshold: {ddos_probability} > {detection_threshold} = {ddos_probability > detection_threshold}")
+                print(f"Final prediction: {prediction}")
+                
+            else:
+                print("❌ Model does not have predict_proba")
+                prediction = self.model.predict(processed_data)[0]
+                print(f"Direct prediction: {prediction}")
+                probabilities = [[1-prediction, prediction]]  # Dummy probabilities
+                ddos_probability = float(prediction)
+                normal_probability = 1.0 - ddos_probability
+                prob_array = [normal_probability, ddos_probability]
+            
+            # Also test direct predict
+            direct_pred = self.model.predict(processed_data)[0]
+            print(f"Direct model.predict(): {direct_pred}")
+            
+            print("=== END DEBUG ===")
+            
+            # Calculate final result
+            confidence = float(max(prob_array))
+            risk_score = ddos_probability
+            
+            return {
+                'prediction': 'DDoS Attack' if prediction == 1 else 'Normal Traffic',
+                'confidence': confidence,
+                'ddos_probability': ddos_probability,
+                'normal_probability': normal_probability,
+                'risk_score': risk_score,
+                'threat_level': 'DEBUG',
+                'raw_prediction': int(prediction),
+                'debug_info': {
+                    'raw_probabilities': probabilities.tolist() if hasattr(probabilities, 'tolist') else str(probabilities),
+                    'direct_prediction': int(direct_pred),
+                    'threshold_test': f"{ddos_probability} > {detection_threshold} = {ddos_probability > detection_threshold}"
+                }
+            }
+            
+        except Exception as e:
+            print(f"DEBUG ERROR: {str(e)}")
+            import traceback
+            traceback.print_exc()
+            return {
+                'prediction': 'Error',
+                'confidence': 0.0,
+                'ddos_probability': 0.0,
+                'normal_probability': 1.0,
+                'risk_score': 0.0,
+                'threat_level': 'ERROR',
+                'raw_prediction': 0,
+                'debug_info': {'error': str(e)}
+            }
+        
     def get_model_info(self):
         """Get model information for display"""
         return {
@@ -1630,6 +1725,69 @@ elif detection_mode == "🎯 Sample Data & Testing":
                 st.error(f"Error loading sample scenarios: {str(e)}")
         else:
             st.warning("Sample scenarios not found. Please run the Jupyter notebook first to generate sample data.")
+            
+# DEBUG SECTION - Add this before the footer
+st.markdown("---")
+st.subheader("🔍 Debug Section")
+
+def quick_diagnostic():
+    st.write("## 🔍 Model Diagnostic")
+    
+    # Test 1: Check model type
+    st.write(f"**Model Type:** {type(ddos_system.model)}")
+    
+    # Test 2: Check if using fallback
+    if 'DummyClassifier' in str(type(ddos_system.model)):
+        st.error("❌ Using DummyClassifier fallback - real model not loaded!")
+        return
+    
+    # Test 3: Create obvious DDoS pattern
+    obvious_ddos = {
+        'duration': 1.0,
+        'protocol_type': 'tcp', 
+        'service': 'http',
+        'flag': 'S0',
+        'src_bytes': 100,
+        'dst_bytes': 0,
+        'count': 500,  # Very high
+        'srv_count': 400,  # Very high
+        'serror_rate': 0.95,  # Very high error rate
+        'srv_serror_rate': 0.95,  # Very high error rate
+        'rerror_rate': 0.0,
+        'srv_rerror_rate': 0.0,
+        'same_srv_rate': 0.1,  # Low same service
+        'diff_srv_rate': 0.9,  # High different services
+        'srv_diff_host_rate': 0.8,
+        'dst_host_count': 255,
+        'dst_host_srv_count': 200,
+        'dst_host_same_srv_rate': 0.1,
+        'dst_host_diff_srv_rate': 0.9,
+        'dst_host_serror_rate': 0.9,
+        'dst_host_srv_serror_rate': 0.9
+    }
+    
+    st.write("**Testing with Obvious DDoS Pattern:**")
+    result = ddos_system.predict_with_debug(obvious_ddos)  # Use debug version
+    
+    st.write(f"- Prediction: {result['prediction']}")
+    st.write(f"- DDoS Probability: {result['ddos_probability']:.3f}")
+    st.write(f"- Normal Probability: {result['normal_probability']:.3f}")
+    st.write(f"- Raw Prediction: {result['raw_prediction']}")
+    
+    if 'debug_info' in result:
+        st.write("**Debug Info:**")
+        st.json(result['debug_info'])
+    
+    # Test 4: Try flipping the probability interpretation
+    st.write("**Testing Flipped Probability Interpretation:**")
+    flipped_ddos_prob = result['normal_probability']  # What if classes are flipped?
+    flipped_prediction = 'DDoS Attack' if flipped_ddos_prob > 0.1 else 'Normal Traffic'
+    st.write(f"- Flipped Prediction: {flipped_prediction}")
+    st.write(f"- Flipped DDoS Probability: {flipped_ddos_prob:.3f}")
+
+# Add this button
+if st.button("🔍 Run Diagnostic", type="secondary"):
+    quick_diagnostic()
 
 # Footer
 st.markdown("---")
