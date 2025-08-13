@@ -108,37 +108,56 @@ class DDoSDetectionSystem:
                 st.sidebar.warning("⚠️ Jupyter metadata not found, using defaults")
                 self.metadata = self._get_default_metadata()
             
-            # Streamlit Cloud model paths
-            model_paths = [
-                'models/finetuned/enhanced_ddos_model.pkl',     # Streamlit Cloud (PRIMARY)
-                './models/finetuned/enhanced_ddos_model.pkl',   # Streamlit Cloud alt
-                'models/pretrained/baseline_model.pkl',        # Baseline fallback
-                './models/pretrained/baseline_model.pkl',      # Baseline alt
-                '../models/finetuned/enhanced_ddos_model.pkl',  # Local development
-                '../models/pretrained/baseline_model.pkl',     # Local baseline
-                'enhanced_ddos_model.pkl',                     # If in root
-                'baseline_model.pkl'                           # Root baseline
+            # FIXED MODEL LOADING - Enhanced model first, with better error handling
+            enhanced_model_paths = [
+                'models/finetuned/enhanced_ddos_model.pkl',     # Primary path
+                './models/finetuned/enhanced_ddos_model.pkl',   # Alternative path
+            ]
+            
+            baseline_model_paths = [
+                'models/pretrained/baseline_model.pkl',         # Baseline fallback
+                './models/pretrained/baseline_model.pkl',       # Baseline alternative
             ]
             
             model_loaded = False
             loaded_model_type = ""
-            for model_path in model_paths:
+            
+            # TRY ENHANCED MODEL FIRST
+            for model_path in enhanced_model_paths:
                 if os.path.exists(model_path):
                     try:
+                        print(f"Attempting to load enhanced model: {model_path}")
                         self.model = joblib.load(model_path)
-                        if 'enhanced' in model_path:
-                            loaded_model_type = "Enhanced Transfer Learning Model"
-                            st.sidebar.success(f"✅ Enhanced Model: {model_path}")
-                        else:
-                            loaded_model_type = "Baseline Model"
-                            st.sidebar.success(f"✅ Baseline Model: {model_path}")
+                        loaded_model_type = "Enhanced Transfer Learning Model"
+                        st.sidebar.success(f"✅ Enhanced Model Loaded: {model_path}")
+                        print(f"✅ Successfully loaded enhanced model: {model_path}")
                         model_loaded = True
                         break
                     except Exception as e:
+                        print(f"❌ Failed to load enhanced model {model_path}: {str(e)}")
+                        st.sidebar.warning(f"⚠️ Failed to load enhanced model: {str(e)}")
                         continue
             
+            # ONLY IF ENHANCED MODEL FAILS, TRY BASELINE
             if not model_loaded:
-                st.sidebar.info("ℹ️ Creating optimized fallback model")
+                st.sidebar.warning("⚠️ Enhanced model failed, trying baseline...")
+                for model_path in baseline_model_paths:
+                    if os.path.exists(model_path):
+                        try:
+                            print(f"Loading baseline model: {model_path}")
+                            self.model = joblib.load(model_path)
+                            loaded_model_type = "Baseline Model"
+                            st.sidebar.info(f"ℹ️ Baseline Model Loaded: {model_path}")
+                            model_loaded = True
+                            break
+                        except Exception as e:
+                            print(f"❌ Failed to load baseline model {model_path}: {str(e)}")
+                            continue
+            
+            # ONLY IF ALL REAL MODELS FAIL, CREATE FALLBACK
+            if not model_loaded:
+                st.sidebar.error("❌ All model files failed to load, creating fallback")
+                print("Creating fallback model...")
                 self.model = self._create_fallback_model()
                 loaded_model_type = "Fallback Model"
             
@@ -1954,7 +1973,7 @@ def verify_model_loading():
 # Add this button alongside the existing diagnostic
 if st.button("🔍 Verify Model Loading", type="secondary"):
     verify_model_loading()
-    
+
 # Footer
 st.markdown("---")
 st.markdown("""
