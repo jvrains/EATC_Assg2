@@ -450,6 +450,7 @@ class DDoSDetectionSystem:
                 'threat_level': 'UNKNOWN',
                 'raw_prediction': 0
             }
+        
     def predict_with_debug(self, input_data):
         """Debug version of predict method to identify the issue"""
         try:
@@ -1725,7 +1726,7 @@ elif detection_mode == "🎯 Sample Data & Testing":
                 st.error(f"Error loading sample scenarios: {str(e)}")
         else:
             st.warning("Sample scenarios not found. Please run the Jupyter notebook first to generate sample data.")
-            
+
 # DEBUG SECTION - Add this before the footer
 st.markdown("---")
 st.subheader("🔍 Debug Section")
