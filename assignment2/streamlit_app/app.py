@@ -115,7 +115,7 @@ class DDoSDetectionSystem:
             ]
             
             baseline_model_paths = [
-                'assignment2/models/pretrained/baseline_model.pkl',
+                '../models/pretrained/baseline_model.pkl',
                 './models/pretrained/baseline_model.pkl',
             ]
             
@@ -132,7 +132,7 @@ class DDoSDetectionSystem:
                         # Try to load with detailed error catching
                         self.model = joblib.load(model_path)
                         loaded_model_type = "Enhanced Transfer Learning Model"
-                        st.sidebar.success(f"✅ Enhanced Model: {model_path}")
+                        st.sidebar.success(f"✅ Enhancued Model: {model_path}")
                         print(f"✅ Successfully loaded enhanced model!")
                         print(f"🔍 Model type: {type(self.model)}")
                         print(f"🔍 Model algorithm: {self.model.__class__.__name__}")
