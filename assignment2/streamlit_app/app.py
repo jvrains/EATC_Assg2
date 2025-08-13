@@ -356,18 +356,21 @@ class DDoSDetectionSystem:
                 if feature not in df.columns:
                     df[feature] = 0.0
             
-            # Enhanced feature engineering (safe version)
-            try:
-                if 'total_bytes' not in df.columns:
-                    df['total_bytes'] = df.get('src_bytes', 0) + df.get('dst_bytes', 0)
-                if 'byte_ratio' not in df.columns:
-                    df['byte_ratio'] = df.get('src_bytes', 0) / (df.get('dst_bytes', 0) + 1)
-                if 'connection_density' not in df.columns:
-                    df['connection_density'] = df.get('count', 0) / (df.get('duration', 0) + 1)
-                if 'total_error_rate' not in df.columns:
-                    df['total_error_rate'] = df.get('serror_rate', 0) + df.get('rerror_rate', 0)
-            except Exception:
-                pass  # Skip feature engineering if it fails
+            # FIXED: Create ALL enhanced features exactly as in Jupyter notebook
+            df['total_bytes'] = df['src_bytes'] + df['dst_bytes']
+            df['byte_ratio'] = df['src_bytes'] / (df['dst_bytes'] + 1)
+            df['bytes_per_second'] = df['total_bytes'] / (df['duration'] + 1)
+            df['connection_density'] = df['count'] / (df['duration'] + 1)
+            df['service_diversity'] = df['diff_srv_rate'] / (df['same_srv_rate'] + 0.01)
+            df['host_diversity'] = df['dst_host_diff_srv_rate'] / (df['dst_host_same_srv_rate'] + 0.01)
+            df['total_error_rate'] = df['serror_rate'] + df['rerror_rate']
+            df['error_asymmetry'] = abs(df['serror_rate'] - df['srv_serror_rate'])
+            df['host_error_rate'] = df['dst_host_serror_rate'] + df['dst_host_rerror_rate']
+            df['host_connection_ratio'] = df['dst_host_count'] / (df['count'] + 1)
+            df['host_service_concentration'] = df['dst_host_srv_count'] / (df['dst_host_count'] + 1)
+            df['is_short_connection'] = (df['duration'] < 1).astype(int)
+            df['is_high_volume'] = (df['count'] > 100).astype(int)
+            df['is_high_error'] = (df['total_error_rate'] > 0.5).astype(int)
             
             # Select only features that exist and match model expectations
             available_features = [f for f in self.feature_names if f in df.columns]
@@ -402,9 +405,8 @@ class DDoSDetectionSystem:
                 probabilities = self.model.predict_proba(processed_data)[0]
                 ddos_probability = float(probabilities[1])
                 
-                # Adjusted threshold - more sensitive to DDoS patterns
-                # Lower threshold means more likely to detect DDoS
-                detection_threshold = 0.3  # Was 0.5, now more sensitive
+                # FIXED: Use STANDARD threshold (0.5) not overly sensitive 0.3
+                detection_threshold = 0.5
                 prediction = 1 if ddos_probability > detection_threshold else 0
             else:
                 prediction = self.model.predict(processed_data)[0]
