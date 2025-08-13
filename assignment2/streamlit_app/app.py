@@ -81,47 +81,137 @@ class DDoSDetectionSystem:
         self.load_system()
     
     def load_system(self):
-        """Load the trained model and associated components"""
+        """Load the trained model and associated components from Jupyter notebook output"""
         try:
-            # Load model metadata
-            metadata_path = '../models/finetuned/model_metadata.json'
-            if os.path.exists(metadata_path):
-                with open(metadata_path, 'r') as f:
-                    self.metadata = json.load(f)
-                st.sidebar.success("✅ Model metadata loaded")
-            else:
-                st.sidebar.warning("⚠️ Model metadata not found, using defaults")
+            # Load model metadata (created by Jupyter notebook)
+            metadata_paths = [
+                '../models/finetuned/model_metadata.json',  # Local development
+                'models/finetuned/model_metadata.json',     # Streamlit Cloud
+                './models/finetuned/model_metadata.json'    # Alternative
+            ]
+            
+            metadata_loaded = False
+            for metadata_path in metadata_paths:
+                if os.path.exists(metadata_path):
+                    try:
+                        with open(metadata_path, 'r') as f:
+                            self.metadata = json.load(f)
+                        st.sidebar.success("✅ Jupyter model metadata loaded")
+                        metadata_loaded = True
+                        break
+                    except Exception as e:
+                        continue
+            
+            if not metadata_loaded:
+                st.sidebar.warning("⚠️ Jupyter metadata not found, using defaults")
                 self.metadata = self._get_default_metadata()
             
-            # Load trained model
-            model_path = '../models/finetuned/enhanced_ddos_model.pkl'
-            if os.path.exists(model_path):
-                self.model = joblib.load(model_path)
-                st.sidebar.success("✅ Trained model loaded")
-            else:
-                st.sidebar.warning("⚠️ Trained model not found, creating fallback")
-                self.model = self._create_fallback_model()
+            # Load the enhanced model (created by Jupyter notebook)
+            model_paths = [
+                '../models/finetuned/enhanced_ddos_model.pkl',  # Local development
+                'models/finetuned/enhanced_ddos_model.pkl',     # Streamlit Cloud
+                './models/finetuned/enhanced_ddos_model.pkl',   # Alternative
+                '../models/pretrained/baseline_model.pkl',     # Fallback to baseline
+                'models/pretrained/baseline_model.pkl'         # Streamlit Cloud baseline
+            ]
             
-            # Load encoders
-            encoders_dir = '../models/encoders/'
-            if os.path.exists(encoders_dir):
-                for file in os.listdir(encoders_dir):
-                    if file.endswith('_encoder.pkl'):
-                        encoder_name = file.replace('_encoder.pkl', '')
-                        self.encoders[encoder_name] = joblib.load(os.path.join(encoders_dir, file))
-                st.sidebar.success(f"✅ {len(self.encoders)} encoders loaded")
-            else:
-                st.sidebar.warning("⚠️ Encoders not found, using defaults")
+            model_loaded = False
+            loaded_model_type = ""
+            for model_path in model_paths:
+                if os.path.exists(model_path):
+                    try:
+                        self.model = joblib.load(model_path)
+                        if 'enhanced' in model_path:
+                            loaded_model_type = "Enhanced Transfer Learning Model"
+                            st.sidebar.success("✅ Enhanced Jupyter model loaded")
+                        else:
+                            loaded_model_type = "Baseline Model"
+                            st.sidebar.success("✅ Baseline Jupyter model loaded")
+                        model_loaded = True
+                        break
+                    except Exception as e:
+                        continue
+            
+            if not model_loaded:
+                st.sidebar.info("ℹ️ Creating optimized fallback model")
+                self.model = self._create_fallback_model()
+                loaded_model_type = "Fallback Model"
+            
+            # Load encoders (created by Jupyter notebook)
+            encoder_dirs = [
+                '../models/encoders/',     # Local development
+                'models/encoders/',        # Streamlit Cloud
+                './models/encoders/'       # Alternative
+            ]
+            
+            encoders_loaded = False
+            encoder_count = 0
+            for encoder_dir in encoder_dirs:
+                if os.path.exists(encoder_dir):
+                    try:
+                        # Look for the specific encoders created by Jupyter notebook
+                        encoder_files = {
+                            'protocol_type': 'protocol_type_encoder.pkl',
+                            'service': 'service_encoder.pkl', 
+                            'flag': 'flag_encoder.pkl'
+                        }
+                        
+                        for encoder_name, filename in encoder_files.items():
+                            encoder_path = os.path.join(encoder_dir, filename)
+                            if os.path.exists(encoder_path):
+                                self.encoders[encoder_name] = joblib.load(encoder_path)
+                                encoder_count += 1
+                        
+                        if encoder_count > 0:
+                            st.sidebar.success(f"✅ {encoder_count} Jupyter encoders loaded")
+                            encoders_loaded = True
+                            break
+                    except Exception as e:
+                        continue
+            
+            if not encoders_loaded:
+                st.sidebar.info("ℹ️ Using default encoders")
                 self.encoders = self._create_default_encoders()
             
-            # Set feature names
-            if 'features' in self.metadata:
-                self.feature_names = self.metadata['features'].get('enhanced_features', self._get_default_features())
+            # Set feature names based on Jupyter notebook configuration
+            if 'features' in self.metadata and 'enhanced_features' in self.metadata['features']:
+                self.feature_names = self.metadata['features']['enhanced_features']
+                st.sidebar.info(f"📊 Using {len(self.feature_names)} enhanced features")
             else:
                 self.feature_names = self._get_default_features()
+                st.sidebar.info(f"📊 Using {len(self.feature_names)} default features")
+            
+            # Load sample scenarios (created by Jupyter notebook)
+            scenario_paths = [
+                '../data/sample_scenarios.json',
+                'data/sample_scenarios.json',
+                './data/sample_scenarios.json'
+            ]
+            
+            for scenario_path in scenario_paths:
+                if os.path.exists(scenario_path):
+                    st.sidebar.success("✅ Jupyter sample scenarios loaded")
+                    break
+            
+            # Display comprehensive loading status
+            st.sidebar.markdown("---")
+            st.sidebar.subheader("🎯 Jupyter Model Status")
+            st.sidebar.write(f"**Model Type:** {loaded_model_type}")
+            st.sidebar.write(f"**Features:** {len(self.feature_names)} enhanced")
+            st.sidebar.write(f"**Encoders:** {encoder_count} custom")
+            st.sidebar.write(f"**Metadata:** {'✅ Custom' if metadata_loaded else '🔄 Default'}")
+            
+            # Show performance metrics if available
+            if 'performance_metrics' in self.metadata:
+                perf = self.metadata['performance_metrics']
+                st.sidebar.markdown("**🏆 Performance:**")
+                st.sidebar.write(f"- Accuracy: {perf.get('accuracy', 0):.1%}")
+                st.sidebar.write(f"- F1-Score: {perf.get('f1_score', 0):.3f}")
+                st.sidebar.write(f"- Precision: {perf.get('precision', 0):.3f}")
+                st.sidebar.write(f"- Recall: {perf.get('recall', 0):.3f}")
             
         except Exception as e:
-            st.sidebar.error(f"❌ Error loading system: {str(e)}")
+            st.sidebar.error(f"❌ Error loading Jupyter models: {str(e)}")
             self._initialize_fallback_system()
     
     def _get_default_metadata(self):
@@ -399,15 +489,22 @@ st.sidebar.markdown(f"🔢 **Features:** {model_info['features_count']}")
 if detection_mode == "🔍 Single Connection Analysis":
     st.header("🔍 Analyze Single Network Connection")
     
-    # Load sample scenarios if available
+    # Load sample scenarios if available (created by Jupyter notebook)
     sample_scenarios = {}
-    scenarios_path = '../data/sample_scenarios.json'
-    if os.path.exists(scenarios_path):
-        try:
-            with open(scenarios_path, 'r') as f:
-                sample_scenarios = json.load(f)
-        except:
-            pass
+    scenario_paths = [
+        '../data/sample_scenarios.json',
+        'data/sample_scenarios.json', 
+        './data/sample_scenarios.json'
+    ]
+    
+    for scenarios_path in scenario_paths:
+        if os.path.exists(scenarios_path):
+            try:
+                with open(scenarios_path, 'r') as f:
+                    sample_scenarios = json.load(f)
+                break
+            except:
+                pass
     
     # Quick scenario buttons
     if sample_scenarios:
