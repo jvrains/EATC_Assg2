@@ -27,25 +27,6 @@ except ImportError:
 if os.path.exists('../models'):
     sys.path.append('..')
 
-# Add this at the very top of your Streamlit app for debugging
-st.sidebar.markdown("---")
-st.sidebar.subheader("🐛 Debug Info")
-st.sidebar.write(f"**Deploy Time:** {datetime.now().strftime('%H:%M:%S')}")
-st.sidebar.write(f"**Current Dir:** {os.getcwd()}")
-
-# Check if files exist
-debug_files = [
-    '../models/finetuned/enhanced_ddos_model.pkl',
-    'models/finetuned/enhanced_ddos_model.pkl',
-    '../models/finetuned/model_metadata.json',
-    'models/finetuned/model_metadata.json'
-]
-
-st.sidebar.write("**File Check:**")
-for file_path in debug_files:
-    exists = "✅" if os.path.exists(file_path) else "❌"
-    st.sidebar.write(f"{exists} {file_path}")
-
 # Page configuration
 st.set_page_config(
     page_title="Enhanced DDoS Detection System",
@@ -484,7 +465,7 @@ model_info = ddos_system.get_model_info()
 # Main Application Header
 st.markdown(f"""
 <div class="main-header">
-    <h1>🛡️ Enhanced DDoS Detection System v2.1</h1>
+    <h1>🛡️ Enhanced DDoS Detection System v2.2</h1>
     <h3>🧠 {model_info['name']}</h3>
     <p>
         Accuracy: {model_info['accuracy']:.1%} | 
