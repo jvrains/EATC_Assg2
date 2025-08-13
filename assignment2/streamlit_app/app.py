@@ -1839,7 +1839,122 @@ def quick_diagnostic():
 # THE BUTTON - This is what was missing!
 if st.button("🔍 Run Diagnostic", type="secondary"):
     quick_diagnostic()
+# Add this ADDITIONAL diagnostic function to your debug section
 
+def verify_model_loading():
+    st.write("## 🔍 Model Loading Verification")
+    
+    # Check which model file was actually loaded
+    st.write("### Model Loading Path Check:")
+    
+    # Check if the files exist
+    model_paths = [
+        'models/finetuned/enhanced_ddos_model.pkl',
+        './models/finetuned/enhanced_ddos_model.pkl', 
+        '../models/finetuned/enhanced_ddos_model.pkl',
+        'models/pretrained/baseline_model.pkl',
+        './models/pretrained/baseline_model.pkl'
+    ]
+    
+    for path in model_paths:
+        exists = os.path.exists(path)
+        st.write(f"- `{path}`: {'✅ EXISTS' if exists else '❌ NOT FOUND'}")
+        if exists:
+            try:
+                size = os.path.getsize(path) / (1024*1024)  # MB
+                st.write(f"  Size: {size:.1f} MB")
+            except:
+                st.write(f"  Size: Unknown")
+    
+    # Check model properties
+    st.write("### Model Properties:")
+    st.write(f"- **Model Type:** {type(ddos_system.model)}")
+    st.write(f"- **Model Algorithm:** {ddos_system.model.__class__.__name__}")
+    
+    # Check if it's a real trained model
+    if hasattr(ddos_system.model, 'n_estimators'):
+        st.write(f"- **Number of Trees:** {ddos_system.model.n_estimators}")
+    if hasattr(ddos_system.model, 'max_depth'):
+        st.write(f"- **Max Depth:** {ddos_system.model.max_depth}")
+    if hasattr(ddos_system.model, 'feature_importances_'):
+        st.write(f"- **Has Feature Importances:** ✅ (Real trained model)")
+        # Show top 5 important features
+        importances = ddos_system.model.feature_importances_
+        feature_names = ddos_system.feature_names
+        if len(importances) == len(feature_names):
+            top_features = sorted(zip(feature_names, importances), key=lambda x: x[1], reverse=True)[:5]
+            st.write("**Top 5 Important Features:**")
+            for feat, imp in top_features:
+                st.write(f"  - {feat}: {imp:.4f}")
+    else:
+        st.error("❌ No feature importances - likely a dummy/fallback model!")
+    
+    # Check model metadata
+    metadata_paths = [
+        'models/finetuned/model_metadata.json',
+        './models/finetuned/model_metadata.json',
+        '../models/finetuned/model_metadata.json'
+    ]
+    
+    metadata_found = False
+    for path in metadata_paths:
+        if os.path.exists(path):
+            st.write(f"### Model Metadata Found: `{path}`")
+            try:
+                with open(path, 'r') as f:
+                    metadata = json.load(f)
+                st.write(f"- **Accuracy:** {metadata['performance_metrics']['accuracy']:.1%}")
+                st.write(f"- **F1-Score:** {metadata['performance_metrics']['f1_score']:.3f}")
+                st.write(f"- **Training Samples:** {metadata['dataset_info']['training_samples']:,}")
+                metadata_found = True
+                break
+            except Exception as e:
+                st.write(f"Error reading metadata: {e}")
+    
+    if not metadata_found:
+        st.warning("⚠️ No model metadata found - model might not be properly trained")
+    
+    # Test with a simple synthetic sample that should definitely be DDoS
+    st.write("### Testing Model Response:")
+    
+    # Create an EXTREME DDoS pattern
+    extreme_ddos = {
+        'duration': 0.1,  # Very short
+        'protocol_type': 'tcp',
+        'service': 'http', 
+        'flag': 'S0',  # SYN attack flag
+        'src_bytes': 64,  # Small packets
+        'dst_bytes': 0,   # No response
+        'count': 1000,    # VERY high connection count
+        'srv_count': 800, # VERY high service count
+        'serror_rate': 1.0,     # 100% SYN errors
+        'srv_serror_rate': 1.0, # 100% service SYN errors
+        'rerror_rate': 0.0,
+        'srv_rerror_rate': 0.0,
+        'same_srv_rate': 0.0,   # 0% same service
+        'diff_srv_rate': 1.0,   # 100% different services
+        'srv_diff_host_rate': 1.0,
+        'dst_host_count': 255,
+        'dst_host_srv_count': 255,
+        'dst_host_same_srv_rate': 0.0,
+        'dst_host_diff_srv_rate': 1.0,
+        'dst_host_serror_rate': 1.0,
+        'dst_host_srv_serror_rate': 1.0
+    }
+    
+    result = ddos_system.predict(extreme_ddos)
+    st.write(f"**Extreme DDoS Test Result:**")
+    st.write(f"- Prediction: {result['prediction']}")
+    st.write(f"- DDoS Probability: {result['ddos_probability']:.3f}")
+    
+    if result['ddos_probability'] < 0.5:
+        st.error("🚨 MAJOR ISSUE: Even extreme DDoS pattern has low probability!")
+        st.write("This confirms you're using a fallback/dummy model, not your trained model.")
+
+# Add this button alongside the existing diagnostic
+if st.button("🔍 Verify Model Loading", type="secondary"):
+    verify_model_loading()
+    
 # Footer
 st.markdown("---")
 st.markdown("""
