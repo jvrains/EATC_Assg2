@@ -85,7 +85,6 @@ class DDoSDetectionSystem:
         try:
             # Streamlit Cloud specific paths (app runs from root, not streamlit_app folder)
             metadata_paths = [
-                'assignment2/models/finetuned/model_metadata.json',
                 'models/finetuned/model_metadata.json',     # Streamlit Cloud (PRIMARY)
                 './models/finetuned/model_metadata.json',   # Streamlit Cloud alternative
                 '../models/finetuned/model_metadata.json',  # Local development
@@ -106,14 +105,12 @@ class DDoSDetectionSystem:
                         continue
             
             if not metadata_loaded:
-                dir_path = os.path.dirname(os.path.realpath(__file__))
-                cwd = os.getcwd()
-                st.sidebar.warning(f"⚠️ Jupyter metadata not found, using defaults")
+                st.sidebar.warning("⚠️ Jupyter metadata not found, using defaults")
                 self.metadata = self._get_default_metadata()
             
             # Streamlit Cloud model paths
             model_paths = [
-                'assignment2/models/finetuned/enhanced_ddos_model.pkl',     # Streamlit Cloud (PRIMARY)
+                'models/finetuned/enhanced_ddos_model.pkl',     # Streamlit Cloud (PRIMARY)
                 './models/finetuned/enhanced_ddos_model.pkl',   # Streamlit Cloud alt
                 'models/pretrained/baseline_model.pkl',        # Baseline fallback
                 './models/pretrained/baseline_model.pkl',      # Baseline alt
@@ -147,7 +144,7 @@ class DDoSDetectionSystem:
             
             # Streamlit Cloud encoder paths
             encoder_dirs = [
-                'assignment2/models/encoders/',        # Streamlit Cloud (PRIMARY)
+                'models/encoders/',        # Streamlit Cloud (PRIMARY)
                 './models/encoders/',      # Streamlit Cloud alt
                 '../models/encoders/',     # Local development
                 'encoders/',               # If in root
@@ -193,7 +190,7 @@ class DDoSDetectionSystem:
             
             # Load sample scenarios (Streamlit Cloud paths)
             scenario_paths = [
-                'assignment2/data/sample_scenarios.json',      # Streamlit Cloud (PRIMARY)
+                'data/sample_scenarios.json',      # Streamlit Cloud (PRIMARY)
                 './data/sample_scenarios.json',    # Streamlit Cloud alt
                 '../data/sample_scenarios.json',   # Local development
                 'sample_scenarios.json',           # If in root
@@ -400,24 +397,35 @@ class DDoSDetectionSystem:
             # Preprocess input
             processed_data = self.preprocess_input(input_data)
             
-            # Make prediction
-            prediction = self.model.predict(processed_data)[0]
-            probabilities = self.model.predict_proba(processed_data)[0]
+            # Make prediction with adjusted sensitivity
+            if hasattr(self.model, 'predict_proba'):
+                probabilities = self.model.predict_proba(processed_data)[0]
+                ddos_probability = float(probabilities[1])
+                
+                # Adjusted threshold - more sensitive to DDoS patterns
+                # Lower threshold means more likely to detect DDoS
+                detection_threshold = 0.3  # Was 0.5, now more sensitive
+                prediction = 1 if ddos_probability > detection_threshold else 0
+            else:
+                prediction = self.model.predict(processed_data)[0]
+                probabilities = [1-prediction, prediction]  # Dummy probabilities
+                ddos_probability = float(prediction)
             
             # Calculate metrics
             confidence = float(probabilities[prediction])
-            ddos_probability = float(probabilities[1])
             risk_score = ddos_probability
             
-            # Determine threat level
-            if risk_score > 0.8:
+            # Enhanced threat level calculation
+            if risk_score > 0.7:
                 threat_level = "CRITICAL"
-            elif risk_score > 0.6:
+            elif risk_score > 0.5:
                 threat_level = "HIGH"
             elif risk_score > 0.3:
                 threat_level = "MEDIUM"
-            else:
+            elif risk_score > 0.1:
                 threat_level = "LOW"
+            else:
+                threat_level = "MINIMAL"
             
             return {
                 'prediction': 'DDoS Attack' if prediction == 1 else 'Normal Traffic',
@@ -468,7 +476,7 @@ model_info = ddos_system.get_model_info()
 # Main Application Header
 st.markdown(f"""
 <div class="main-header">
-    <h1>🛡️ Enhanced DDoS Detection System v2.2.1-2025-08-13</h1>
+    <h1>🛡️ Enhanced DDoS Detection System v2.2</h1>
     <h3>🧠 {model_info['name']}</h3>
     <p>
         Accuracy: {model_info['accuracy']:.1%} | 
@@ -485,7 +493,7 @@ st.sidebar.title("🔍 Detection Options")
 detection_mode = st.sidebar.selectbox(
     "Choose Detection Mode:",
     [
-        # "🔍 Single Connection Analysis",
+        "🔍 Single Connection Analysis",
         "📊 Batch File Analysis", 
         "⚡ Real-time Monitoring",
         "📈 Model Performance",
