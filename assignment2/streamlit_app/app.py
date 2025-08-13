@@ -395,26 +395,33 @@ class DDoSDetectionSystem:
             return dummy_data
     
     def predict(self, input_data):
-        """Make prediction on input data"""
+        """Make prediction on input data - FIXED VERSION"""
         try:
             # Preprocess input
             processed_data = self.preprocess_input(input_data)
             
-            # Make prediction with adjusted sensitivity
+            # Make prediction with proper threshold
             if hasattr(self.model, 'predict_proba'):
                 probabilities = self.model.predict_proba(processed_data)[0]
                 ddos_probability = float(probabilities[1])
                 
-                # FIXED: Use STANDARD threshold (0.5) not overly sensitive 0.3
+                # FIXED: Use consistent threshold
                 detection_threshold = 0.1
                 prediction = 1 if ddos_probability > detection_threshold else 0
+                
+                # DEBUG: Print what's happening (remove this later)
+                print(f"DEBUG: ddos_probability = {ddos_probability}")
+                print(f"DEBUG: detection_threshold = {detection_threshold}")
+                print(f"DEBUG: ddos_probability > detection_threshold = {ddos_probability > detection_threshold}")
+                print(f"DEBUG: prediction = {prediction}")
+                
             else:
                 prediction = self.model.predict(processed_data)[0]
                 probabilities = [1-prediction, prediction]  # Dummy probabilities
                 ddos_probability = float(prediction)
             
             # Calculate metrics
-            confidence = float(probabilities[prediction])
+            confidence = float(probabilities[prediction])  # THIS MIGHT BE THE BUG!
             risk_score = ddos_probability
             
             # Enhanced threat level calculation
@@ -429,8 +436,14 @@ class DDoSDetectionSystem:
             else:
                 threat_level = "MINIMAL"
             
+            # CRITICAL: Make sure we return the RIGHT prediction
+            prediction_text = 'DDoS Attack' if prediction == 1 else 'Normal Traffic'
+            
+            # DEBUG: Print final result (remove this later)
+            print(f"DEBUG: Final prediction_text = {prediction_text}")
+            
             return {
-                'prediction': 'DDoS Attack' if prediction == 1 else 'Normal Traffic',
+                'prediction': prediction_text,
                 'confidence': confidence,
                 'ddos_probability': ddos_probability,
                 'normal_probability': float(probabilities[0]),
@@ -1826,7 +1839,7 @@ def quick_diagnostic():
 # THE BUTTON - This is what was missing!
 if st.button("🔍 Run Diagnostic", type="secondary"):
     quick_diagnostic()
-    
+
 # Footer
 st.markdown("---")
 st.markdown("""
