@@ -106,7 +106,9 @@ class DDoSDetectionSystem:
                         continue
             
             if not metadata_loaded:
-                st.sidebar.warning("⚠️ Jupyter metadata not found, using defaults")
+                dir_path = os.path.dirname(os.path.realpath(__file__))
+                cwd = os.getcwd()
+                st.sidebar.warning(f"⚠️ Jupyter metadata not found, using defaults, {dir_path}, {cwd}")
                 self.metadata = self._get_default_metadata()
             
             # Streamlit Cloud model paths
