@@ -1823,6 +1823,10 @@ def quick_diagnostic():
         import traceback
         st.code(traceback.format_exc())
 
+# THE BUTTON - This is what was missing!
+if st.button("🔍 Run Diagnostic", type="secondary"):
+    quick_diagnostic()
+    
 # Footer
 st.markdown("---")
 st.markdown("""
