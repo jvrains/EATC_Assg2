@@ -110,12 +110,12 @@ class DDoSDetectionSystem:
             
             # DEBUG MODEL LOADING - Replace the existing model loading section with this
             enhanced_model_paths = [
-                'models/finetuned/enhanced_ddos_model.pkl',
+                'assignment2/models/finetuned/enhanced_ddos_model.pkl',
                 './models/finetuned/enhanced_ddos_model.pkl',
             ]
             
             baseline_model_paths = [
-                'models/pretrained/baseline_model.pkl',
+                'assignment2/models/pretrained/baseline_model.pkl',
                 './models/pretrained/baseline_model.pkl',
             ]
             
