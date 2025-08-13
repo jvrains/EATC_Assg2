@@ -411,7 +411,7 @@ class DDoSDetectionSystem:
                 ddos_probability = float(probabilities[1])
                 
                 # FIXED: Use STANDARD threshold (0.5) not overly sensitive 0.3
-                detection_threshold = 0.5
+                detection_threshold = 0.3
                 prediction = 1 if ddos_probability > detection_threshold else 0
             else:
                 prediction = self.model.predict(processed_data)[0]
