@@ -468,7 +468,7 @@ model_info = ddos_system.get_model_info()
 # Main Application Header
 st.markdown(f"""
 <div class="main-header">
-    <h1>🛡️ Enhanced DDoS Detection System v2.2</h1>
+    <h1>🛡️ Enhanced DDoS Detection System v2.2.1-2025-08-13</h1>
     <h3>🧠 {model_info['name']}</h3>
     <p>
         Accuracy: {model_info['accuracy']:.1%} | 
@@ -485,7 +485,7 @@ st.sidebar.title("🔍 Detection Options")
 detection_mode = st.sidebar.selectbox(
     "Choose Detection Mode:",
     [
-        "🔍 Single Connection Analysis",
+        # "🔍 Single Connection Analysis",
         "📊 Batch File Analysis", 
         "⚡ Real-time Monitoring",
         "📈 Model Performance",
