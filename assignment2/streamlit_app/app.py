@@ -27,6 +27,25 @@ except ImportError:
 if os.path.exists('../models'):
     sys.path.append('..')
 
+# Add this at the very top of your Streamlit app for debugging
+st.sidebar.markdown("---")
+st.sidebar.subheader("🐛 Debug Info")
+st.sidebar.write(f"**Deploy Time:** {datetime.now().strftime('%H:%M:%S')}")
+st.sidebar.write(f"**Current Dir:** {os.getcwd()}")
+
+# Check if files exist
+debug_files = [
+    '../models/finetuned/enhanced_ddos_model.pkl',
+    'models/finetuned/enhanced_ddos_model.pkl',
+    '../models/finetuned/model_metadata.json',
+    'models/finetuned/model_metadata.json'
+]
+
+st.sidebar.write("**File Check:**")
+for file_path in debug_files:
+    exists = "✅" if os.path.exists(file_path) else "❌"
+    st.sidebar.write(f"{exists} {file_path}")
+
 # Page configuration
 st.set_page_config(
     page_title="Enhanced DDoS Detection System",
@@ -83,11 +102,13 @@ class DDoSDetectionSystem:
     def load_system(self):
         """Load the trained model and associated components from Jupyter notebook output"""
         try:
-            # Load model metadata (created by Jupyter notebook)
+            # Streamlit Cloud specific paths (app runs from root, not streamlit_app folder)
             metadata_paths = [
+                'models/finetuned/model_metadata.json',     # Streamlit Cloud (PRIMARY)
+                './models/finetuned/model_metadata.json',   # Streamlit Cloud alternative
                 '../models/finetuned/model_metadata.json',  # Local development
-                'models/finetuned/model_metadata.json',     # Streamlit Cloud
-                './models/finetuned/model_metadata.json'    # Alternative
+                'model_metadata.json',                      # If in root
+                './model_metadata.json'                     # Root alternative
             ]
             
             metadata_loaded = False
@@ -96,7 +117,7 @@ class DDoSDetectionSystem:
                     try:
                         with open(metadata_path, 'r') as f:
                             self.metadata = json.load(f)
-                        st.sidebar.success("✅ Jupyter model metadata loaded")
+                        st.sidebar.success(f"✅ Metadata: {metadata_path}")
                         metadata_loaded = True
                         break
                     except Exception as e:
@@ -106,13 +127,16 @@ class DDoSDetectionSystem:
                 st.sidebar.warning("⚠️ Jupyter metadata not found, using defaults")
                 self.metadata = self._get_default_metadata()
             
-            # Load the enhanced model (created by Jupyter notebook)
+            # Streamlit Cloud model paths
             model_paths = [
+                'models/finetuned/enhanced_ddos_model.pkl',     # Streamlit Cloud (PRIMARY)
+                './models/finetuned/enhanced_ddos_model.pkl',   # Streamlit Cloud alt
+                'models/pretrained/baseline_model.pkl',        # Baseline fallback
+                './models/pretrained/baseline_model.pkl',      # Baseline alt
                 '../models/finetuned/enhanced_ddos_model.pkl',  # Local development
-                'models/finetuned/enhanced_ddos_model.pkl',     # Streamlit Cloud
-                './models/finetuned/enhanced_ddos_model.pkl',   # Alternative
-                '../models/pretrained/baseline_model.pkl',     # Fallback to baseline
-                'models/pretrained/baseline_model.pkl'         # Streamlit Cloud baseline
+                '../models/pretrained/baseline_model.pkl',     # Local baseline
+                'enhanced_ddos_model.pkl',                     # If in root
+                'baseline_model.pkl'                           # Root baseline
             ]
             
             model_loaded = False
@@ -123,10 +147,10 @@ class DDoSDetectionSystem:
                         self.model = joblib.load(model_path)
                         if 'enhanced' in model_path:
                             loaded_model_type = "Enhanced Transfer Learning Model"
-                            st.sidebar.success("✅ Enhanced Jupyter model loaded")
+                            st.sidebar.success(f"✅ Enhanced Model: {model_path}")
                         else:
                             loaded_model_type = "Baseline Model"
-                            st.sidebar.success("✅ Baseline Jupyter model loaded")
+                            st.sidebar.success(f"✅ Baseline Model: {model_path}")
                         model_loaded = True
                         break
                     except Exception as e:
@@ -137,11 +161,13 @@ class DDoSDetectionSystem:
                 self.model = self._create_fallback_model()
                 loaded_model_type = "Fallback Model"
             
-            # Load encoders (created by Jupyter notebook)
+            # Streamlit Cloud encoder paths
             encoder_dirs = [
+                'models/encoders/',        # Streamlit Cloud (PRIMARY)
+                './models/encoders/',      # Streamlit Cloud alt
                 '../models/encoders/',     # Local development
-                'models/encoders/',        # Streamlit Cloud
-                './models/encoders/'       # Alternative
+                'encoders/',               # If in root
+                './encoders/'              # Root alt
             ]
             
             encoders_loaded = False
@@ -163,7 +189,7 @@ class DDoSDetectionSystem:
                                 encoder_count += 1
                         
                         if encoder_count > 0:
-                            st.sidebar.success(f"✅ {encoder_count} Jupyter encoders loaded")
+                            st.sidebar.success(f"✅ {encoder_count} Encoders: {encoder_dir}")
                             encoders_loaded = True
                             break
                     except Exception as e:
@@ -181,17 +207,24 @@ class DDoSDetectionSystem:
                 self.feature_names = self._get_default_features()
                 st.sidebar.info(f"📊 Using {len(self.feature_names)} default features")
             
-            # Load sample scenarios (created by Jupyter notebook)
+            # Load sample scenarios (Streamlit Cloud paths)
             scenario_paths = [
-                '../data/sample_scenarios.json',
-                'data/sample_scenarios.json',
-                './data/sample_scenarios.json'
+                'data/sample_scenarios.json',      # Streamlit Cloud (PRIMARY)
+                './data/sample_scenarios.json',    # Streamlit Cloud alt
+                '../data/sample_scenarios.json',   # Local development
+                'sample_scenarios.json',           # If in root
+                './sample_scenarios.json'          # Root alt
             ]
             
+            scenarios_found = False
             for scenario_path in scenario_paths:
                 if os.path.exists(scenario_path):
-                    st.sidebar.success("✅ Jupyter sample scenarios loaded")
+                    st.sidebar.success(f"✅ Scenarios: {scenario_path}")
+                    scenarios_found = True
                     break
+            
+            if not scenarios_found:
+                st.sidebar.info("ℹ️ Sample scenarios not found")
             
             # Display comprehensive loading status
             st.sidebar.markdown("---")
@@ -451,7 +484,7 @@ model_info = ddos_system.get_model_info()
 # Main Application Header
 st.markdown(f"""
 <div class="main-header">
-    <h1>🛡️ Enhanced DDoS Detection System</h1>
+    <h1>🛡️ Enhanced DDoS Detection System v2.1</h1>
     <h3>🧠 {model_info['name']}</h3>
     <p>
         Accuracy: {model_info['accuracy']:.1%} | 
@@ -492,9 +525,11 @@ if detection_mode == "🔍 Single Connection Analysis":
     # Load sample scenarios if available (created by Jupyter notebook)
     sample_scenarios = {}
     scenario_paths = [
-        '../data/sample_scenarios.json',
-        'data/sample_scenarios.json', 
-        './data/sample_scenarios.json'
+        'data/sample_scenarios.json',      # Streamlit Cloud (PRIMARY)
+        './data/sample_scenarios.json',    # Streamlit Cloud alt
+        '../data/sample_scenarios.json',   # Local development
+        'sample_scenarios.json',           # If in root
+        './sample_scenarios.json'          # Root alt
     ]
     
     for scenarios_path in scenario_paths:
