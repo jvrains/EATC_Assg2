@@ -6,15 +6,26 @@ import pandas as pd
 import numpy as np
 import plotly.express as px
 import plotly.graph_objects as go
-import joblib
-import json
 import os
 import time
 from datetime import datetime, timedelta
 import sys
 
-# Add parent directory to path to access models
-sys.path.append('..')
+# Safe imports with error handling
+try:
+    import joblib
+except ImportError:
+    st.error("joblib not installed. Run: pip install joblib")
+    st.stop()
+
+try:
+    import json
+except ImportError:
+    import simplejson as json
+
+# Add parent directory to path to access models (only if running locally)
+if os.path.exists('../models'):
+    sys.path.append('..')
 
 # Page configuration
 st.set_page_config(
@@ -145,17 +156,30 @@ class DDoSDetectionSystem:
     def _create_fallback_model(self):
         """Create a fallback model if trained model not found"""
         from sklearn.ensemble import RandomForestClassifier
+        
+        # Initialize with default feature count if feature_names not set yet
+        n_features = len(self.feature_names) if self.feature_names else 21
+        
         model = RandomForestClassifier(
-            n_estimators=100,
-            max_depth=15,
+            n_estimators=50,  # Reduced for faster loading
+            max_depth=10,
             random_state=42,
             class_weight='balanced'
         )
+        
         # Create synthetic training data for fallback
-        X_synthetic = np.random.random((1000, len(self.feature_names)))
-        y_synthetic = np.random.choice([0, 1], 1000, p=[0.7, 0.3])
-        model.fit(X_synthetic, y_synthetic)
-        return model
+        try:
+            X_synthetic = np.random.random((500, n_features))  # Reduced size for speed
+            y_synthetic = np.random.choice([0, 1], 500, p=[0.7, 0.3])
+            model.fit(X_synthetic, y_synthetic)
+            return model
+        except Exception as e:
+            st.sidebar.error(f"Error creating fallback model: {str(e)}")
+            # Return a minimal working model
+            X_minimal = np.random.random((10, 21))  # Minimal dataset
+            y_minimal = np.array([0, 1, 0, 1, 0, 1, 0, 1, 0, 1])
+            model.fit(X_minimal, y_minimal)
+            return model
     
     def _create_default_encoders(self):
         """Create default encoders if not found"""
@@ -183,10 +207,24 @@ class DDoSDetectionSystem:
     
     def _initialize_fallback_system(self):
         """Initialize fallback system if loading fails"""
-        self.metadata = self._get_default_metadata()
-        self.model = self._create_fallback_model()
-        self.encoders = self._create_default_encoders()
-        self.feature_names = self._get_default_features()
+        try:
+            self.metadata = self._get_default_metadata()
+            self.feature_names = self._get_default_features()  # Set features first
+            self.encoders = self._create_default_encoders()
+            self.model = self._create_fallback_model()  # Create model last
+            st.sidebar.warning("⚠️ Using fallback system - some features may be limited")
+        except Exception as e:
+            st.sidebar.error(f"Critical error initializing system: {str(e)}")
+            # Create absolute minimal system
+            self.metadata = self._get_default_metadata()
+            self.feature_names = self._get_default_features()
+            self.encoders = self._create_default_encoders()
+            # Create simplest possible model
+            from sklearn.dummy import DummyClassifier
+            self.model = DummyClassifier(strategy='constant', constant=0)
+            X_dummy = np.zeros((1, len(self.feature_names)))
+            y_dummy = np.array([0])
+            self.model.fit(X_dummy, y_dummy)
     
     def preprocess_input(self, input_data):
         """Preprocess input data for prediction"""
@@ -199,42 +237,54 @@ class DDoSDetectionSystem:
             else:
                 raise ValueError("Input must be dict or DataFrame")
             
-            # Encode categorical variables
+            # Encode categorical variables safely
             for col, encoder in self.encoders.items():
                 if col in df.columns:
-                    df[col] = df[col].astype(str).apply(
-                        lambda x: encoder.transform([x])[0] if x in encoder.classes_ else 0
-                    )
+                    try:
+                        df[col] = df[col].astype(str).apply(
+                            lambda x: encoder.transform([x])[0] if x in encoder.classes_ else 0
+                        )
+                    except Exception:
+                        df[col] = 0  # Default value if encoding fails
             
-            # Add missing features with default values
+            # Ensure we have all required features
             for feature in self.feature_names:
                 if feature not in df.columns:
                     df[feature] = 0.0
             
-            # Enhanced feature engineering (matching Jupyter notebook)
-            if 'total_bytes' not in df.columns:
-                df['total_bytes'] = df.get('src_bytes', 0) + df.get('dst_bytes', 0)
-            if 'byte_ratio' not in df.columns:
-                df['byte_ratio'] = df.get('src_bytes', 0) / (df.get('dst_bytes', 0) + 1)
-            if 'connection_density' not in df.columns:
-                df['connection_density'] = df.get('count', 0) / (df.get('duration', 0) + 1)
-            if 'total_error_rate' not in df.columns:
-                df['total_error_rate'] = df.get('serror_rate', 0) + df.get('rerror_rate', 0)
+            # Enhanced feature engineering (safe version)
+            try:
+                if 'total_bytes' not in df.columns:
+                    df['total_bytes'] = df.get('src_bytes', 0) + df.get('dst_bytes', 0)
+                if 'byte_ratio' not in df.columns:
+                    df['byte_ratio'] = df.get('src_bytes', 0) / (df.get('dst_bytes', 0) + 1)
+                if 'connection_density' not in df.columns:
+                    df['connection_density'] = df.get('count', 0) / (df.get('duration', 0) + 1)
+                if 'total_error_rate' not in df.columns:
+                    df['total_error_rate'] = df.get('serror_rate', 0) + df.get('rerror_rate', 0)
+            except Exception:
+                pass  # Skip feature engineering if it fails
             
-            # Select only features used by the model
+            # Select only features that exist and match model expectations
             available_features = [f for f in self.feature_names if f in df.columns]
-            if len(available_features) < len(self.feature_names):
-                # Fill missing features with zeros
-                for feature in self.feature_names:
-                    if feature not in df.columns:
-                        df[feature] = 0.0
             
-            return df[self.feature_names].fillna(0)
+            # If we don't have enough features, pad with zeros
+            result_df = pd.DataFrame()
+            for feature in self.feature_names:
+                if feature in df.columns:
+                    result_df[feature] = df[feature]
+                else:
+                    result_df[feature] = 0.0
+            
+            return result_df.fillna(0)
             
         except Exception as e:
             st.error(f"Error preprocessing input: {str(e)}")
-            # Return dummy data that matches expected shape
-            dummy_data = pd.DataFrame(np.zeros((1, len(self.feature_names))), columns=self.feature_names)
+            # Return safe dummy data
+            dummy_data = pd.DataFrame(
+                np.zeros((1, len(self.feature_names))), 
+                columns=self.feature_names
+            )
             return dummy_data
     
     def predict(self, input_data):
