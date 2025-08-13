@@ -108,56 +108,84 @@ class DDoSDetectionSystem:
                 st.sidebar.warning("⚠️ Jupyter metadata not found, using defaults")
                 self.metadata = self._get_default_metadata()
             
-            # FIXED MODEL LOADING - Enhanced model first, with better error handling
+            # DEBUG MODEL LOADING - Replace the existing model loading section with this
             enhanced_model_paths = [
-                'models/finetuned/enhanced_ddos_model.pkl',     # Primary path
-                './models/finetuned/enhanced_ddos_model.pkl',   # Alternative path
+                'models/finetuned/enhanced_ddos_model.pkl',
+                './models/finetuned/enhanced_ddos_model.pkl',
             ]
             
             baseline_model_paths = [
-                'models/pretrained/baseline_model.pkl',         # Baseline fallback
-                './models/pretrained/baseline_model.pkl',       # Baseline alternative
+                'models/pretrained/baseline_model.pkl',
+                './models/pretrained/baseline_model.pkl',
             ]
             
             model_loaded = False
             loaded_model_type = ""
             
-            # TRY ENHANCED MODEL FIRST
+            # TRY ENHANCED MODEL WITH DETAILED ERROR REPORTING
             for model_path in enhanced_model_paths:
                 if os.path.exists(model_path):
                     try:
-                        print(f"Attempting to load enhanced model: {model_path}")
+                        print(f"📁 Found enhanced model: {model_path}")
+                        print(f"📏 File size: {os.path.getsize(model_path) / (1024*1024):.1f} MB")
+                        
+                        # Try to load with detailed error catching
                         self.model = joblib.load(model_path)
                         loaded_model_type = "Enhanced Transfer Learning Model"
-                        st.sidebar.success(f"✅ Enhanced Model Loaded: {model_path}")
-                        print(f"✅ Successfully loaded enhanced model: {model_path}")
+                        st.sidebar.success(f"✅ Enhanced Model: {model_path}")
+                        print(f"✅ Successfully loaded enhanced model!")
+                        print(f"🔍 Model type: {type(self.model)}")
+                        print(f"🔍 Model algorithm: {self.model.__class__.__name__}")
                         model_loaded = True
                         break
+                        
                     except Exception as e:
-                        print(f"❌ Failed to load enhanced model {model_path}: {str(e)}")
-                        st.sidebar.warning(f"⚠️ Failed to load enhanced model: {str(e)}")
+                        error_msg = str(e)
+                        print(f"❌ ENHANCED MODEL LOAD ERROR: {error_msg}")
+                        print(f"🔍 Error type: {type(e).__name__}")
+                        
+                        # Show specific error types
+                        if "sklearn" in error_msg.lower():
+                            print("🚨 Scikit-learn version mismatch issue!")
+                            st.sidebar.error("⚠️ Scikit-learn version mismatch")
+                        elif "pickle" in error_msg.lower():
+                            print("🚨 Pickle/joblib compatibility issue!")
+                            st.sidebar.error("⚠️ Model file compatibility issue")
+                        elif "memory" in error_msg.lower():
+                            print("🚨 Memory issue!")
+                            st.sidebar.error("⚠️ Insufficient memory")
+                        else:
+                            print(f"🚨 Unknown error: {error_msg}")
+                            st.sidebar.error(f"⚠️ Model load error: {error_msg[:50]}...")
+                        
                         continue
             
-            # ONLY IF ENHANCED MODEL FAILS, TRY BASELINE
+            # TRY BASELINE MODEL IF ENHANCED FAILS
             if not model_loaded:
                 st.sidebar.warning("⚠️ Enhanced model failed, trying baseline...")
+                print("📁 Trying baseline model...")
+                
                 for model_path in baseline_model_paths:
                     if os.path.exists(model_path):
                         try:
-                            print(f"Loading baseline model: {model_path}")
+                            print(f"📁 Found baseline model: {model_path}")
+                            print(f"📏 File size: {os.path.getsize(model_path) / (1024*1024):.1f} MB")
+                            
                             self.model = joblib.load(model_path)
                             loaded_model_type = "Baseline Model"
-                            st.sidebar.info(f"ℹ️ Baseline Model Loaded: {model_path}")
+                            st.sidebar.info(f"ℹ️ Baseline Model: {model_path}")
+                            print(f"✅ Baseline model loaded successfully!")
                             model_loaded = True
                             break
+                            
                         except Exception as e:
-                            print(f"❌ Failed to load baseline model {model_path}: {str(e)}")
+                            print(f"❌ BASELINE MODEL LOAD ERROR: {str(e)}")
                             continue
             
-            # ONLY IF ALL REAL MODELS FAIL, CREATE FALLBACK
+            # CREATE FALLBACK ONLY IF ALL MODELS FAIL
             if not model_loaded:
-                st.sidebar.error("❌ All model files failed to load, creating fallback")
-                print("Creating fallback model...")
+                st.sidebar.error("❌ All models failed, creating fallback")
+                print("🚨 All model files failed! Creating fallback...")
                 self.model = self._create_fallback_model()
                 loaded_model_type = "Fallback Model"
             
