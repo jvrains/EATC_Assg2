@@ -493,7 +493,7 @@ st.sidebar.title("🔍 Detection Options")
 detection_mode = st.sidebar.selectbox(
     "Choose Detection Mode:",
     [
-        "🔍 Single Connection Analysis",
+        #"🔍 Single Connection Analysis",
         "📊 Batch File Analysis", 
         "⚡ Real-time Monitoring",
         "📈 Model Performance",
