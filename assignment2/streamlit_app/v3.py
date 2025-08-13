@@ -85,7 +85,7 @@ class DDoSDetectionSystem:
         try:
             # Streamlit Cloud specific paths (app runs from root, not streamlit_app folder)
             metadata_paths = [
-                'assignment2/models/finetuned/model_metadata.json',     # Streamlit Cloud (PRIMARY)
+                'models/finetuned/model_metadata.json',     # Streamlit Cloud (PRIMARY)
                 './models/finetuned/model_metadata.json',   # Streamlit Cloud alternative
                 '../models/finetuned/model_metadata.json',  # Local development
                 'model_metadata.json',                      # If in root
@@ -410,7 +410,6 @@ class DDoSDetectionSystem:
                 probabilities = self.model.predict_proba(processed_data)[0]
                 ddos_probability = float(probabilities[1])
                 
-                # Adjusted threshold - more sensitive to DDoS patterns
                 # FIXED: Use STANDARD threshold (0.5) not overly sensitive 0.3
                 detection_threshold = 0.5
                 prediction = 1 if ddos_probability > detection_threshold else 0
