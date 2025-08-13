@@ -1742,7 +1742,11 @@ def quick_diagnostic():
         st.error("❌ Using DummyClassifier fallback - real model not loaded!")
         return
     
-    # Test 3: Create obvious DDoS pattern
+    # Test 3: Check model classes
+    if hasattr(ddos_system.model, 'classes_'):
+        st.write(f"**Model Classes:** {ddos_system.model.classes_}")
+    
+    # Test 4: Create obvious DDoS pattern
     obvious_ddos = {
         'duration': 1.0,
         'protocol_type': 'tcp', 
@@ -1768,27 +1772,56 @@ def quick_diagnostic():
     }
     
     st.write("**Testing with Obvious DDoS Pattern:**")
-    result = ddos_system.predict_with_debug(obvious_ddos)  # Use debug version
     
-    st.write(f"- Prediction: {result['prediction']}")
-    st.write(f"- DDoS Probability: {result['ddos_probability']:.3f}")
-    st.write(f"- Normal Probability: {result['normal_probability']:.3f}")
-    st.write(f"- Raw Prediction: {result['raw_prediction']}")
-    
-    if 'debug_info' in result:
-        st.write("**Debug Info:**")
-        st.json(result['debug_info'])
-    
-    # Test 4: Try flipping the probability interpretation
-    st.write("**Testing Flipped Probability Interpretation:**")
-    flipped_ddos_prob = result['normal_probability']  # What if classes are flipped?
-    flipped_prediction = 'DDoS Attack' if flipped_ddos_prob > 0.1 else 'Normal Traffic'
-    st.write(f"- Flipped Prediction: {flipped_prediction}")
-    st.write(f"- Flipped DDoS Probability: {flipped_ddos_prob:.3f}")
-
-# Add this button
-if st.button("🔍 Run Diagnostic", type="secondary"):
-    quick_diagnostic()
+    # Manual debug of the prediction process
+    try:
+        # Step 1: Preprocess the data
+        processed_data = ddos_system.preprocess_input(obvious_ddos)
+        st.write(f"**Processed Data Shape:** {processed_data.shape}")
+        
+        # Step 2: Get raw probabilities
+        if hasattr(ddos_system.model, 'predict_proba'):
+            probabilities = ddos_system.model.predict_proba(processed_data)[0]
+            st.write(f"**Raw Probabilities:** {probabilities}")
+            
+            normal_prob = float(probabilities[0])
+            ddos_prob = float(probabilities[1])
+            
+            st.write(f"**Normal Probability (probabilities[0]):** {normal_prob:.3f}")
+            st.write(f"**DDoS Probability (probabilities[1]):** {ddos_prob:.3f}")
+            
+            # Step 3: Test threshold logic
+            threshold = 0.1
+            should_be_ddos = ddos_prob > threshold
+            st.write(f"**Threshold Test:** {ddos_prob:.3f} > {threshold} = {should_be_ddos}")
+            
+            # Step 4: Compare with direct prediction
+            direct_pred = ddos_system.model.predict(processed_data)[0]
+            st.write(f"**Direct model.predict():** {direct_pred}")
+            
+            # Step 5: Use the actual predict method
+            result = ddos_system.predict(obvious_ddos)
+            st.write(f"**Actual predict() result:** {result['prediction']}")
+            st.write(f"**DDoS Probability from predict():** {result['ddos_probability']:.3f}")
+            
+            # Step 6: The problem diagnosis
+            if ddos_prob > threshold and result['prediction'] == 'Normal Traffic':
+                st.error("🚨 FOUND THE BUG!")
+                st.write("The probability is above threshold but prediction is still Normal.")
+                st.write("There's a bug in the predict() method logic.")
+            elif ddos_prob <= threshold:
+                st.warning("⚠️ Probability is below threshold")
+                st.write("The model is not confident this is a DDoS attack.")
+            else:
+                st.success("✅ Logic seems correct")
+                
+        else:
+            st.error("Model doesn't have predict_proba method")
+            
+    except Exception as e:
+        st.error(f"Error during diagnosis: {str(e)}")
+        import traceback
+        st.code(traceback.format_exc())
 
 # Footer
 st.markdown("---")
