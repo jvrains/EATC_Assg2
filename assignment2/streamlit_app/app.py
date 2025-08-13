@@ -108,12 +108,12 @@ class DDoSDetectionSystem:
             if not metadata_loaded:
                 dir_path = os.path.dirname(os.path.realpath(__file__))
                 cwd = os.getcwd()
-                st.sidebar.warning(f"⚠️ Jupyter metadata not found, using defaults, {dir_path}, {cwd}")
+                st.sidebar.warning(f"⚠️ Jupyter metadata not found, using defaults")
                 self.metadata = self._get_default_metadata()
             
             # Streamlit Cloud model paths
             model_paths = [
-                'models/finetuned/enhanced_ddos_model.pkl',     # Streamlit Cloud (PRIMARY)
+                'assignment2/models/finetuned/enhanced_ddos_model.pkl',     # Streamlit Cloud (PRIMARY)
                 './models/finetuned/enhanced_ddos_model.pkl',   # Streamlit Cloud alt
                 'models/pretrained/baseline_model.pkl',        # Baseline fallback
                 './models/pretrained/baseline_model.pkl',      # Baseline alt
@@ -147,7 +147,7 @@ class DDoSDetectionSystem:
             
             # Streamlit Cloud encoder paths
             encoder_dirs = [
-                'models/encoders/',        # Streamlit Cloud (PRIMARY)
+                'assignment2/models/encoders/',        # Streamlit Cloud (PRIMARY)
                 './models/encoders/',      # Streamlit Cloud alt
                 '../models/encoders/',     # Local development
                 'encoders/',               # If in root
@@ -193,7 +193,7 @@ class DDoSDetectionSystem:
             
             # Load sample scenarios (Streamlit Cloud paths)
             scenario_paths = [
-                'data/sample_scenarios.json',      # Streamlit Cloud (PRIMARY)
+                'assignment2/data/sample_scenarios.json',      # Streamlit Cloud (PRIMARY)
                 './data/sample_scenarios.json',    # Streamlit Cloud alt
                 '../data/sample_scenarios.json',   # Local development
                 'sample_scenarios.json',           # If in root
