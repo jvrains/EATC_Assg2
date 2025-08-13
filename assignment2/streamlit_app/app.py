@@ -112,6 +112,7 @@ class DDoSDetectionSystem:
             enhanced_model_paths = [
                 'assignment2/models/finetuned/enhanced_ddos_model.pkl',
                 './models/finetuned/enhanced_ddos_model.pkl',
+                'assignment2\models\finetuned\enhanced_ddos_model.pkl'
             ]
             
             baseline_model_paths = [
