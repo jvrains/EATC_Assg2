@@ -389,7 +389,7 @@ class DDoSDetectionSystem:
             self.model.fit(X_dummy, y_dummy)
     
     def preprocess_input(self, input_data):
-        """Preprocess input data for prediction - FIXED for missing columns"""
+        """Preprocess input data for prediction - COMPLETE REWRITE"""
         try:
             # Handle different input formats
             if isinstance(input_data, dict):
@@ -399,85 +399,151 @@ class DDoSDetectionSystem:
             else:
                 raise ValueError("Input must be dict or DataFrame")
             
-            # STEP 1: Add ALL missing NSL-KDD columns with defaults FIRST
-            required_basic_fields = [
-                'duration', 'protocol_type', 'service', 'flag', 'src_bytes', 'dst_bytes',
-                'land', 'wrong_fragment', 'urgent', 'hot', 'num_failed_logins',
-                'logged_in', 'num_compromised', 'root_shell', 'su_attempted',
-                'num_root', 'num_file_creations', 'num_shells', 'num_access_files',
-                'num_outbound_cmds', 'is_host_login', 'is_guest_login',
-                'count', 'srv_count', 'serror_rate', 'srv_serror_rate', 
-                'rerror_rate', 'srv_rerror_rate', 'same_srv_rate', 'diff_srv_rate',
-                'srv_diff_host_rate', 'dst_host_count', 'dst_host_srv_count',
-                'dst_host_same_srv_rate', 'dst_host_diff_srv_rate',
-                'dst_host_same_src_port_rate', 'dst_host_srv_diff_host_rate',
-                'dst_host_serror_rate', 'dst_host_srv_serror_rate',
-                'dst_host_rerror_rate',  # THIS WAS MISSING!
-                'dst_host_srv_rerror_rate'  # THIS TOO!
-            ]
+            print(f"🔍 Input columns: {list(df.columns)}")
             
-            # Add missing columns with appropriate defaults
-            for field in required_basic_fields:
-                if field not in df.columns:
-                    if 'rate' in field:
-                        df[field] = 0.0  # Error rates default to 0
-                    elif 'count' in field:
-                        df[field] = 1.0  # Counts default to 1
-                    elif field in ['duration']:
-                        df[field] = 60.0  # Default duration
-                    elif field in ['src_bytes', 'dst_bytes']:
-                        df[field] = 1000.0  # Default bytes
-                    else:
-                        df[field] = 0.0  # Everything else defaults to 0
+            # COMPLETE NSL-KDD SCHEMA - ALL 41 original features
+            all_nslkdd_features = {
+                'duration': 60.0,
+                'protocol_type': 'tcp',
+                'service': 'http', 
+                'flag': 'SF',
+                'src_bytes': 1000.0,
+                'dst_bytes': 1500.0,
+                'land': 0,
+                'wrong_fragment': 0,
+                'urgent': 0,
+                'hot': 0,
+                'num_failed_logins': 0,
+                'logged_in': 0,
+                'num_compromised': 0,
+                'root_shell': 0,
+                'su_attempted': 0,
+                'num_root': 0,
+                'num_file_creations': 0,
+                'num_shells': 0,
+                'num_access_files': 0,
+                'num_outbound_cmds': 0,
+                'is_host_login': 0,
+                'is_guest_login': 0,
+                'count': 5,
+                'srv_count': 3,
+                'serror_rate': 0.0,
+                'srv_serror_rate': 0.0,
+                'rerror_rate': 0.0,
+                'srv_rerror_rate': 0.0,
+                'same_srv_rate': 1.0,
+                'diff_srv_rate': 0.0,
+                'srv_diff_host_rate': 0.0,
+                'dst_host_count': 100,
+                'dst_host_srv_count': 10,
+                'dst_host_same_srv_rate': 1.0,
+                'dst_host_diff_srv_rate': 0.0,
+                'dst_host_same_src_port_rate': 0.0,
+                'dst_host_srv_diff_host_rate': 0.0,
+                'dst_host_serror_rate': 0.0,
+                'dst_host_srv_serror_rate': 0.0,
+                'dst_host_rerror_rate': 0.0,        # THE MISSING ONE!
+                'dst_host_srv_rerror_rate': 0.0     # THE OTHER MISSING ONE!
+            }
             
-            # STEP 2: Encode categorical variables (before feature engineering!)
-            for col, encoder in self.encoders.items():
-                if col in df.columns:
+            # Step 1: Create a complete dataframe with ALL features
+            complete_df = pd.DataFrame([all_nslkdd_features])
+            
+            # Step 2: Update with actual input values
+            for col in df.columns:
+                if col in complete_df.columns:
+                    complete_df[col] = df[col].iloc[0]
+                    print(f"✅ Updated {col}: {df[col].iloc[0]}")
+            
+            print(f"🔍 Complete DF columns: {len(complete_df.columns)}")
+            
+            # Step 3: Encode categorical variables
+            categorical_cols = ['protocol_type', 'service', 'flag']
+            for col in categorical_cols:
+                if col in self.encoders:
                     try:
-                        df[col] = df[col].astype(str).apply(
-                            lambda x: encoder.transform([x])[0] if x in encoder.classes_ else 0
-                        )
-                    except Exception:
-                        df[col] = 0  # Default value if encoding fails
+                        val = str(complete_df[col].iloc[0])
+                        if val in self.encoders[col].classes_:
+                            complete_df[col] = self.encoders[col].transform([val])[0]
+                        else:
+                            complete_df[col] = 0
+                        print(f"✅ Encoded {col}: {complete_df[col].iloc[0]}")
+                    except Exception as e:
+                        print(f"⚠️ Encoding {col} failed: {e}")
+                        complete_df[col] = 0
             
-            # STEP 3: Create enhanced features (exactly as in training)
-            df['total_bytes'] = df['src_bytes'] + df['dst_bytes']
-            df['byte_ratio'] = df['src_bytes'] / (df['dst_bytes'] + 1)
-            df['bytes_per_second'] = df['total_bytes'] / (df['duration'] + 1)
-            df['connection_density'] = df['count'] / (df['duration'] + 1)
-            df['service_diversity'] = df['diff_srv_rate'] / (df['same_srv_rate'] + 0.01)
-            df['host_diversity'] = df['dst_host_diff_srv_rate'] / (df['dst_host_same_srv_rate'] + 0.01)
-            df['total_error_rate'] = df['serror_rate'] + df['rerror_rate']
-            df['error_asymmetry'] = abs(df['serror_rate'] - df['srv_serror_rate'])
-            df['host_error_rate'] = df['dst_host_serror_rate'] + df['dst_host_rerror_rate']
-            df['host_connection_ratio'] = df['dst_host_count'] / (df['count'] + 1)
-            df['host_service_concentration'] = df['dst_host_srv_count'] / (df['dst_host_count'] + 1)
-            df['is_short_connection'] = (df['duration'] < 1).astype(int)
-            df['is_high_volume'] = (df['count'] > 100).astype(int)
-            df['is_high_error'] = (df['total_error_rate'] > 0.5).astype(int)
+            # Step 4: Create enhanced features
+            print("🔧 Creating enhanced features...")
+            complete_df['total_bytes'] = complete_df['src_bytes'] + complete_df['dst_bytes']
+            complete_df['byte_ratio'] = complete_df['src_bytes'] / (complete_df['dst_bytes'] + 1)
+            complete_df['bytes_per_second'] = complete_df['total_bytes'] / (complete_df['duration'] + 1)
+            complete_df['connection_density'] = complete_df['count'] / (complete_df['duration'] + 1)
+            complete_df['service_diversity'] = complete_df['diff_srv_rate'] / (complete_df['same_srv_rate'] + 0.01)
+            complete_df['host_diversity'] = complete_df['dst_host_diff_srv_rate'] / (complete_df['dst_host_same_srv_rate'] + 0.01)
+            complete_df['total_error_rate'] = complete_df['serror_rate'] + complete_df['rerror_rate']
+            complete_df['error_asymmetry'] = abs(complete_df['serror_rate'] - complete_df['srv_serror_rate'])
+            complete_df['host_error_rate'] = complete_df['dst_host_serror_rate'] + complete_df['dst_host_rerror_rate']
+            complete_df['host_connection_ratio'] = complete_df['dst_host_count'] / (complete_df['count'] + 1)
+            complete_df['host_service_concentration'] = complete_df['dst_host_srv_count'] / (complete_df['dst_host_count'] + 1)
+            complete_df['is_short_connection'] = (complete_df['duration'] < 1).astype(int)
+            complete_df['is_high_volume'] = (complete_df['count'] > 100).astype(int)
+            complete_df['is_high_error'] = (complete_df['total_error_rate'] > 0.5).astype(int)
             
-            # STEP 4: Select features in EXACT order expected by model
-            result_df = pd.DataFrame()
-            for feature in self.feature_names:
-                if feature in df.columns:
-                    result_df[feature] = df[feature]
+            print(f"🔍 After enhanced features: {len(complete_df.columns)} columns")
+            
+            # Step 5: Select features for model (in exact order)
+            if hasattr(self, 'feature_names') and self.feature_names:
+                model_features = self.feature_names
+            else:
+                # Fallback feature list if self.feature_names is broken
+                model_features = [
+                    'duration', 'protocol_type', 'service', 'flag', 'src_bytes', 'dst_bytes',
+                    'count', 'srv_count', 'serror_rate', 'srv_serror_rate', 'rerror_rate',
+                    'srv_rerror_rate', 'same_srv_rate', 'diff_srv_rate', 'srv_diff_host_rate',
+                    'dst_host_count', 'dst_host_srv_count', 'dst_host_same_srv_rate',
+                    'dst_host_diff_srv_rate', 'dst_host_serror_rate', 'dst_host_srv_serror_rate',
+                    'dst_host_rerror_rate', 'dst_host_srv_rerror_rate',  # Add missing ones
+                    'total_bytes', 'byte_ratio', 'bytes_per_second', 'connection_density',
+                    'service_diversity', 'host_diversity', 'total_error_rate', 'error_asymmetry',
+                    'host_error_rate', 'host_connection_ratio', 'host_service_concentration',
+                    'is_short_connection', 'is_high_volume', 'is_high_error'
+                ]
+            
+            print(f"🔍 Model expects {len(model_features)} features")
+            
+            # Step 6: Create final result with exact features needed
+            result = pd.DataFrame()
+            for feature in model_features:
+                if feature in complete_df.columns:
+                    result[feature] = complete_df[feature]
+                    print(f"✅ Added feature: {feature}")
                 else:
-                    # If still missing after all our prep, add zeros
-                    result_df[feature] = 0.0
-                    print(f"Warning: Feature {feature} still missing, using 0.0")
+                    result[feature] = 0.0
+                    print(f"⚠️ Missing feature {feature}, using 0.0")
             
-            return result_df.fillna(0)
+            print(f"🎯 Final result shape: {result.shape}")
+            print(f"🎯 Final columns: {list(result.columns)}")
+            
+            return result.fillna(0)
             
         except Exception as e:
-            print(f"Error in preprocess_input: {str(e)}")
+            print(f"❌ PREPROCESSING ERROR: {str(e)}")
             import traceback
             traceback.print_exc()
             
-            # Return safe dummy data with correct shape
+            # Emergency fallback - create dummy data with correct shape
+            if hasattr(self, 'feature_names') and self.feature_names:
+                n_features = len(self.feature_names)
+                feature_names = self.feature_names
+            else:
+                n_features = 35  # Fallback
+                feature_names = [f"feature_{i}" for i in range(n_features)]
+            
             dummy_data = pd.DataFrame(
-                np.zeros((1, len(self.feature_names))), 
-                columns=self.feature_names
+                np.zeros((1, n_features)), 
+                columns=feature_names
             )
+            print(f"🚨 Using emergency fallback with shape: {dummy_data.shape}")
             return dummy_data
     
     def predict(self, input_data):
