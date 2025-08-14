@@ -562,7 +562,7 @@ class DDoSDetectionSystem:
                 detection_threshold = 0.2  # 20% threshold as you wanted
                 
                 # FIXED: Correct threshold logic
-                if ddos_probability > detection_threshold:
+                if ddos_probability >= detection_threshold:
                     prediction = 1  # DDoS
                     prediction_text = 'DDoS Attack'
                 else:
@@ -1946,7 +1946,7 @@ def debug_current_predictions():
 # Add this button
 if st.button("🔍 Debug Current Predictions", type="secondary"):
     debug_current_predictions()
-      
+
 # Footer
 st.markdown("---")
 st.markdown("""
