@@ -2152,6 +2152,92 @@ def verify_model_loading():
 if st.button("🔍 Verify Model Loading", type="secondary"):
     verify_model_loading()
 
+def check_model_feature_count():
+    st.write("## 🔍 Model Feature Count Analysis")
+    
+    # Check what the model actually expects
+    if hasattr(ddos_system.model, 'n_features_in_'):
+        model_expects = ddos_system.model.n_features_in_
+        st.write(f"**Model expects:** {model_expects} features")
+    else:
+        st.write("**Model expects:** Unknown (no n_features_in_ attribute)")
+        model_expects = None
+    
+    # Check what our feature list has
+    app_features = len(ddos_system.feature_names)
+    st.write(f"**App feature list has:** {app_features} features")
+    
+    # Show the mismatch
+    if model_expects and model_expects != app_features:
+        st.error(f"🚨 MISMATCH! Model expects {model_expects} but app provides {app_features}")
+        st.write(f"**Missing:** {model_expects - app_features} features")
+        
+        # Show current feature list
+        st.write("**Current feature list:**")
+        for i, feat in enumerate(ddos_system.feature_names):
+            st.write(f"{i+1:2d}. {feat}")
+        
+        # Try to fix by updating feature list
+        if st.button("🔧 Fix Feature Count"):
+            if model_expects == 55:  # 41 basic + 14 enhanced
+                # Complete NSL-KDD + enhanced features
+                new_features = [
+                    # All 41 NSL-KDD features
+                    'duration', 'protocol_type', 'service', 'flag', 'src_bytes', 'dst_bytes',
+                    'land', 'wrong_fragment', 'urgent', 'hot', 'num_failed_logins',
+                    'logged_in', 'num_compromised', 'root_shell', 'su_attempted',
+                    'num_root', 'num_file_creations', 'num_shells', 'num_access_files',
+                    'num_outbound_cmds', 'is_host_login', 'is_guest_login',
+                    'count', 'srv_count', 'serror_rate', 'srv_serror_rate', 
+                    'rerror_rate', 'srv_rerror_rate', 'same_srv_rate', 'diff_srv_rate',
+                    'srv_diff_host_rate', 'dst_host_count', 'dst_host_srv_count',
+                    'dst_host_same_srv_rate', 'dst_host_diff_srv_rate',
+                    'dst_host_same_src_port_rate', 'dst_host_srv_diff_host_rate',
+                    'dst_host_serror_rate', 'dst_host_srv_serror_rate',
+                    'dst_host_rerror_rate', 'dst_host_srv_rerror_rate',  # THE MISSING ONES!
+                    
+                    # 14 enhanced features  
+                    'total_bytes', 'byte_ratio', 'bytes_per_second', 'connection_density',
+                    'service_diversity', 'host_diversity', 'total_error_rate', 'error_asymmetry',
+                    'host_error_rate', 'host_connection_ratio', 'host_service_concentration',
+                    'is_short_connection', 'is_high_volume', 'is_high_error'
+                ]
+                
+                ddos_system.feature_names = new_features
+                st.success(f"✅ Updated feature list to {len(new_features)} features!")
+                st.write("**New feature list:**")
+                for i, feat in enumerate(new_features):
+                    st.write(f"{i+1:2d}. {feat}")
+                    
+            else:
+                st.warning(f"Model expects {model_expects} features - need manual fix")
+    else:
+        st.success("✅ Feature count matches!")
+        
+    # Test with the updated features
+    if st.button("🧪 Test with Updated Features"):
+        test_sample = {
+            'duration': 120.0, 'protocol_type': 'tcp', 'service': 'http',
+            'flag': 'SF', 'src_bytes': 2000, 'dst_bytes': 5000,
+            'count': 5, 'srv_count': 3, 'serror_rate': 0.1
+        }
+        
+        try:
+            result = ddos_system.preprocess_input(test_sample)
+            st.success(f"✅ Preprocessing works! Output shape: {result.shape}")
+            
+            if result.shape[1] == model_expects:
+                st.success("🎯 Perfect! Feature count now matches model expectation!")
+            else:
+                st.warning(f"⚠️ Still mismatch: {result.shape[1]} vs {model_expects}")
+                
+        except Exception as e:
+            st.error(f"❌ Still failing: {str(e)}")
+
+# Add this button
+if st.button("🔍 Check Model Feature Count", type="secondary"):
+    check_model_feature_count()
+    
 # Footer
 st.markdown("---")
 st.markdown("""
