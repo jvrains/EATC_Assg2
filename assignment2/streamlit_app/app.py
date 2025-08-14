@@ -295,13 +295,24 @@ class DDoSDetectionSystem:
         }
     
     def _get_default_features(self):
-        """Return default feature list"""
+        """Return COMPLETE feature list including missing columns"""
         return [
+            # Core NSL-KDD features (21 features)
             'duration', 'protocol_type', 'service', 'flag', 'src_bytes', 'dst_bytes',
             'count', 'srv_count', 'serror_rate', 'srv_serror_rate', 'rerror_rate',
             'srv_rerror_rate', 'same_srv_rate', 'diff_srv_rate', 'srv_diff_host_rate',
             'dst_host_count', 'dst_host_srv_count', 'dst_host_same_srv_rate',
-            'dst_host_diff_srv_rate', 'dst_host_serror_rate', 'dst_host_srv_serror_rate'
+            'dst_host_diff_srv_rate', 'dst_host_serror_rate', 'dst_host_srv_serror_rate',
+            
+            # MISSING COLUMNS - ADD THESE:
+            'dst_host_rerror_rate',      # This was missing!
+            'dst_host_srv_rerror_rate',  # This was missing!
+            
+            # Enhanced features (14 features)
+            'total_bytes', 'byte_ratio', 'bytes_per_second', 'connection_density',
+            'service_diversity', 'host_diversity', 'total_error_rate', 'error_asymmetry',
+            'host_error_rate', 'host_connection_ratio', 'host_service_concentration',
+            'is_short_connection', 'is_high_volume', 'is_high_error'
         ]
     
     def _create_fallback_model(self):
@@ -1914,7 +1925,7 @@ def quick_diagnostic():
 # THE BUTTON - This is what was missing!
 if st.button("🔍 Run Diagnostic", type="secondary"):
     quick_diagnostic()
-    
+
 # Add this ADDITIONAL diagnostic function to your debug section
 # Add this to your debug section
 def debug_preprocessing():
