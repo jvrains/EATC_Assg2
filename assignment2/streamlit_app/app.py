@@ -378,7 +378,7 @@ class DDoSDetectionSystem:
             self.model.fit(X_dummy, y_dummy)
     
     def preprocess_input(self, input_data):
-        """Preprocess input data for prediction"""
+        """Preprocess input data for prediction - FIXED for missing columns"""
         try:
             # Handle different input formats
             if isinstance(input_data, dict):
@@ -388,7 +388,38 @@ class DDoSDetectionSystem:
             else:
                 raise ValueError("Input must be dict or DataFrame")
             
-            # Encode categorical variables safely
+            # STEP 1: Add ALL missing NSL-KDD columns with defaults FIRST
+            required_basic_fields = [
+                'duration', 'protocol_type', 'service', 'flag', 'src_bytes', 'dst_bytes',
+                'land', 'wrong_fragment', 'urgent', 'hot', 'num_failed_logins',
+                'logged_in', 'num_compromised', 'root_shell', 'su_attempted',
+                'num_root', 'num_file_creations', 'num_shells', 'num_access_files',
+                'num_outbound_cmds', 'is_host_login', 'is_guest_login',
+                'count', 'srv_count', 'serror_rate', 'srv_serror_rate', 
+                'rerror_rate', 'srv_rerror_rate', 'same_srv_rate', 'diff_srv_rate',
+                'srv_diff_host_rate', 'dst_host_count', 'dst_host_srv_count',
+                'dst_host_same_srv_rate', 'dst_host_diff_srv_rate',
+                'dst_host_same_src_port_rate', 'dst_host_srv_diff_host_rate',
+                'dst_host_serror_rate', 'dst_host_srv_serror_rate',
+                'dst_host_rerror_rate',  # THIS WAS MISSING!
+                'dst_host_srv_rerror_rate'  # THIS TOO!
+            ]
+            
+            # Add missing columns with appropriate defaults
+            for field in required_basic_fields:
+                if field not in df.columns:
+                    if 'rate' in field:
+                        df[field] = 0.0  # Error rates default to 0
+                    elif 'count' in field:
+                        df[field] = 1.0  # Counts default to 1
+                    elif field in ['duration']:
+                        df[field] = 60.0  # Default duration
+                    elif field in ['src_bytes', 'dst_bytes']:
+                        df[field] = 1000.0  # Default bytes
+                    else:
+                        df[field] = 0.0  # Everything else defaults to 0
+            
+            # STEP 2: Encode categorical variables (before feature engineering!)
             for col, encoder in self.encoders.items():
                 if col in df.columns:
                     try:
@@ -398,12 +429,7 @@ class DDoSDetectionSystem:
                     except Exception:
                         df[col] = 0  # Default value if encoding fails
             
-            # Ensure we have all required features
-            for feature in self.feature_names:
-                if feature not in df.columns:
-                    df[feature] = 0.0
-            
-            # FIXED: Create ALL enhanced features exactly as in Jupyter notebook
+            # STEP 3: Create enhanced features (exactly as in training)
             df['total_bytes'] = df['src_bytes'] + df['dst_bytes']
             df['byte_ratio'] = df['src_bytes'] / (df['dst_bytes'] + 1)
             df['bytes_per_second'] = df['total_bytes'] / (df['duration'] + 1)
@@ -419,22 +445,24 @@ class DDoSDetectionSystem:
             df['is_high_volume'] = (df['count'] > 100).astype(int)
             df['is_high_error'] = (df['total_error_rate'] > 0.5).astype(int)
             
-            # Select only features that exist and match model expectations
-            available_features = [f for f in self.feature_names if f in df.columns]
-            
-            # If we don't have enough features, pad with zeros
+            # STEP 4: Select features in EXACT order expected by model
             result_df = pd.DataFrame()
             for feature in self.feature_names:
                 if feature in df.columns:
                     result_df[feature] = df[feature]
                 else:
+                    # If still missing after all our prep, add zeros
                     result_df[feature] = 0.0
+                    print(f"Warning: Feature {feature} still missing, using 0.0")
             
             return result_df.fillna(0)
             
         except Exception as e:
-            st.error(f"Error preprocessing input: {str(e)}")
-            # Return safe dummy data
+            print(f"Error in preprocess_input: {str(e)}")
+            import traceback
+            traceback.print_exc()
+            
+            # Return safe dummy data with correct shape
             dummy_data = pd.DataFrame(
                 np.zeros((1, len(self.feature_names))), 
                 columns=self.feature_names
