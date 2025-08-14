@@ -1914,7 +1914,52 @@ def quick_diagnostic():
 # THE BUTTON - This is what was missing!
 if st.button("🔍 Run Diagnostic", type="secondary"):
     quick_diagnostic()
+    
 # Add this ADDITIONAL diagnostic function to your debug section
+# Add this to your debug section
+def debug_preprocessing():
+    st.write("## 🔍 Debug Preprocessing")
+    
+    # Test with a simple sample
+    test_sample = {
+        'duration': 120.0,
+        'protocol_type': 'tcp',
+        'service': 'http',
+        'flag': 'SF',
+        'src_bytes': 2000,
+        'dst_bytes': 5000,
+        'count': 5,
+        'srv_count': 3,
+        'serror_rate': 0.1,
+        'srv_serror_rate': 0.1
+        # Deliberately missing many columns
+    }
+    
+    st.write("**Input sample (missing many columns):**")
+    st.write(list(test_sample.keys()))
+    
+    try:
+        # Test preprocessing
+        result = ddos_system.preprocess_input(test_sample)
+        st.success("✅ Preprocessing worked!")
+        st.write(f"**Output shape:** {result.shape}")
+        st.write(f"**Output columns:** {list(result.columns)}")
+        
+        # Check for the problematic column
+        if 'dst_host_rerror_rate' in result.columns:
+            st.success("✅ dst_host_rerror_rate is present!")
+            st.write(f"Value: {result['dst_host_rerror_rate'].iloc[0]}")
+        else:
+            st.error("❌ dst_host_rerror_rate is still missing!")
+            
+    except Exception as e:
+        st.error(f"❌ Preprocessing still failing: {str(e)}")
+        import traceback
+        st.code(traceback.format_exc())
+
+# Add this button
+if st.button("🔍 Debug Preprocessing", type="secondary"):
+    debug_preprocessing()
 
 def verify_model_loading():
     st.write("## 🔍 Model Loading Verification")
