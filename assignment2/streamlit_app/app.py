@@ -132,7 +132,7 @@ class DDoSDetectionSystem:
                         # Try to load with detailed error catching
                         self.model = joblib.load(model_path)
                         loaded_model_type = "Enhanced Transfer Learning Model"
-                        st.sidebar.success(f"✅ Enhancued Model: {model_path}")
+                        st.sidebar.success(f"✅ Enhanced Model: {model_path}")
                         print(f"✅ Successfully loaded enhanced model!")
                         print(f"🔍 Model type: {type(self.model)}")
                         print(f"🔍 Model algorithm: {self.model.__class__.__name__}")
@@ -1897,55 +1897,6 @@ elif detection_mode == "🎯 Sample Data & Testing":
                 st.error(f"Error loading sample scenarios: {str(e)}")
         else:
             st.warning("Sample scenarios not found. Please run the Jupyter notebook first to generate sample data.")
-
-def debug_current_predictions():
-    st.write("## 🔍 Debug Current Prediction Logic")
-    
-    # Test samples with different DDoS probabilities
-    test_cases = [
-        {'name': 'Low Risk (should be Normal)', 'ddos_prob_target': 0.15},
-        {'name': 'Medium Risk (should be DDoS)', 'ddos_prob_target': 0.35},
-        {'name': 'High Risk (should be DDoS)', 'ddos_prob_target': 0.65}
-    ]
-    
-    for case in test_cases:
-        st.write(f"**{case['name']}:**")
-        
-        # Create a test sample
-        if case['ddos_prob_target'] < 0.2:  # Normal sample
-            test_sample = {
-                'duration': 120.0, 'protocol_type': 'tcp', 'service': 'http', 'flag': 'SF',
-                'src_bytes': 2000, 'dst_bytes': 5000, 'count': 5, 'srv_count': 3,
-                'serror_rate': 0.1, 'srv_serror_rate': 0.1, 'same_srv_rate': 0.9
-            }
-        else:  # DDoS sample
-            test_sample = {
-                'duration': 2.0, 'protocol_type': 'tcp', 'service': 'http', 'flag': 'S0',
-                'src_bytes': 100, 'dst_bytes': 0, 'count': 200, 'srv_count': 150,
-                'serror_rate': 0.8, 'srv_serror_rate': 0.9, 'same_srv_rate': 0.1
-            }
-        
-        # Get prediction
-        result = ddos_system.predict(test_sample)
-        
-        # Show results
-        st.write(f"- DDoS Probability: {result['ddos_probability']:.1%}")
-        st.write(f"- Prediction: {result['prediction']}")
-        st.write(f"- Confidence: {result['confidence']:.1%}")
-        
-        # Check if threshold logic is working
-        expected = "Normal Traffic" if result['ddos_probability'] <= 0.2 else "DDoS Attack"
-        if result['prediction'] == expected:
-            st.success(f"✅ Correct prediction based on 20% threshold")
-        else:
-            st.error(f"❌ Wrong! Expected: {expected}, Got: {result['prediction']}")
-            st.write(f"**Debug:** {result['ddos_probability']:.3f} vs threshold 0.2")
-        
-        st.write("---")
-
-# Add this button
-if st.button("🔍 Debug Current Predictions", type="secondary"):
-    debug_current_predictions()
 
 # Footer
 st.markdown("---")
