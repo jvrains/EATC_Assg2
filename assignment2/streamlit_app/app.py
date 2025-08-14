@@ -547,44 +547,68 @@ class DDoSDetectionSystem:
             return dummy_data
     
     def predict(self, input_data):
-        """Make prediction on input data - FIXED VERSION"""
+        """Make prediction on input data - FIXED threshold and confidence"""
         try:
             # Preprocess input
             processed_data = self.preprocess_input(input_data)
             
-            # Make prediction with proper threshold
+            # Make prediction
             if hasattr(self.model, 'predict_proba'):
                 probabilities = self.model.predict_proba(processed_data)[0]
+                normal_probability = float(probabilities[0])
                 ddos_probability = float(probabilities[1])
                 
-                # FIXED: Use consistent threshold
-                detection_threshold = 0.2
-                prediction = 1 if ddos_probability > detection_threshold else 0
+                # FIXED: Use configurable threshold (you can change this!)
+                detection_threshold = 0.2  # 20% threshold as you wanted
                 
+                # FIXED: Correct threshold logic
+                if ddos_probability > detection_threshold:
+                    prediction = 1  # DDoS
+                    prediction_text = 'DDoS Attack'
+                else:
+                    prediction = 0  # Normal
+                    prediction_text = 'Normal Traffic'
+                
+                # FIXED: Correct confidence calculation
+                # Confidence should be the probability of the predicted class
+                if prediction == 1:
+                    confidence = ddos_probability      # If predicting DDoS, confidence = DDoS prob
+                else:
+                    confidence = normal_probability    # If predicting Normal, confidence = Normal prob
+                    
             else:
+                # Fallback for models without predict_proba
                 prediction = self.model.predict(processed_data)[0]
-                probabilities = [1-prediction, prediction]  # Dummy probabilities
-                ddos_probability = float(prediction)
+                probabilities = [1-prediction, prediction]
+                normal_probability = float(probabilities[0])
+                ddos_probability = float(probabilities[1])
+                prediction_text = 'DDoS Attack' if prediction == 1 else 'Normal Traffic'
+                confidence = max(probabilities)
             
-            # Calculate metrics
-            confidence = float(probabilities[prediction])  # THIS MIGHT BE THE BUG!
+            # Risk score (always DDoS probability regardless of prediction)
             risk_score = ddos_probability
             
             # Enhanced threat level calculation
-            if risk_score > 0.7:
+            if risk_score > 0.8:
                 threat_level = "CRITICAL"
-            elif risk_score > 0.5:
+            elif risk_score > 0.6:
                 threat_level = "HIGH"
-            elif risk_score > 0.3:
+            elif risk_score > 0.4:
                 threat_level = "MEDIUM"
-            elif risk_score > 0.1:
+            elif risk_score > 0.2:
                 threat_level = "LOW"
             else:
                 threat_level = "MINIMAL"
             
-            # CRITICAL: Make sure we return the RIGHT prediction
-            prediction_text = 'DDoS Attack' if prediction == 1 else 'Normal Traffic'
-            
+            return {
+                'prediction': prediction_text,
+                'confidence': confidence,
+                'ddos_probability': ddos_probability,
+                'normal_probability': normal_probability,
+                'risk_score': risk_score,
+                'threat_level': threat_level,
+                'raw_prediction': int(prediction)
+            }
             
         except Exception as e:
             st.error(f"Prediction error: {str(e)}")
@@ -1873,7 +1897,56 @@ elif detection_mode == "🎯 Sample Data & Testing":
                 st.error(f"Error loading sample scenarios: {str(e)}")
         else:
             st.warning("Sample scenarios not found. Please run the Jupyter notebook first to generate sample data.")
+
+def debug_current_predictions():
+    st.write("## 🔍 Debug Current Prediction Logic")
     
+    # Test samples with different DDoS probabilities
+    test_cases = [
+        {'name': 'Low Risk (should be Normal)', 'ddos_prob_target': 0.15},
+        {'name': 'Medium Risk (should be DDoS)', 'ddos_prob_target': 0.35},
+        {'name': 'High Risk (should be DDoS)', 'ddos_prob_target': 0.65}
+    ]
+    
+    for case in test_cases:
+        st.write(f"**{case['name']}:**")
+        
+        # Create a test sample
+        if case['ddos_prob_target'] < 0.2:  # Normal sample
+            test_sample = {
+                'duration': 120.0, 'protocol_type': 'tcp', 'service': 'http', 'flag': 'SF',
+                'src_bytes': 2000, 'dst_bytes': 5000, 'count': 5, 'srv_count': 3,
+                'serror_rate': 0.1, 'srv_serror_rate': 0.1, 'same_srv_rate': 0.9
+            }
+        else:  # DDoS sample
+            test_sample = {
+                'duration': 2.0, 'protocol_type': 'tcp', 'service': 'http', 'flag': 'S0',
+                'src_bytes': 100, 'dst_bytes': 0, 'count': 200, 'srv_count': 150,
+                'serror_rate': 0.8, 'srv_serror_rate': 0.9, 'same_srv_rate': 0.1
+            }
+        
+        # Get prediction
+        result = ddos_system.predict(test_sample)
+        
+        # Show results
+        st.write(f"- DDoS Probability: {result['ddos_probability']:.1%}")
+        st.write(f"- Prediction: {result['prediction']}")
+        st.write(f"- Confidence: {result['confidence']:.1%}")
+        
+        # Check if threshold logic is working
+        expected = "Normal Traffic" if result['ddos_probability'] <= 0.2 else "DDoS Attack"
+        if result['prediction'] == expected:
+            st.success(f"✅ Correct prediction based on 20% threshold")
+        else:
+            st.error(f"❌ Wrong! Expected: {expected}, Got: {result['prediction']}")
+            st.write(f"**Debug:** {result['ddos_probability']:.3f} vs threshold 0.2")
+        
+        st.write("---")
+
+# Add this button
+if st.button("🔍 Debug Current Predictions", type="secondary"):
+    debug_current_predictions()
+      
 # Footer
 st.markdown("---")
 st.markdown("""
